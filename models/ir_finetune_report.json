@@ -1,0 +1,177 @@
+{
+  "stage1_epochs": 4,
+  "stage1_batch_size": 24,
+  "stage1_grad_accum": 2,
+  "stage2_epochs": 2,
+  "stage2_batch_size": 14,
+  "stage2_grad_accum": 2,
+  "eval_batch_size": 32,
+  "amp_dtype": "torch.bfloat16",
+  "train_count": 6741,
+  "val_count": 759,
+  "test_count": 2500,
+  "history": [
+    {
+      "stage": 0,
+      "epoch": 0,
+      "val_clean": {
+        "wflw98_nme": 2.5941,
+        "vf50_nme": 2.1855,
+        "count": 759.0
+      },
+      "val_ir": {
+        "wflw98_nme": 3.5704,
+        "vf50_nme": 3.0121,
+        "count": 759.0
+      }
+    },
+    {
+      "stage": 1,
+      "epoch": 1,
+      "epoch_sec": 192.1,
+      "loss": 0.03808,
+      "val_clean": {
+        "wflw98_nme": 2.7158,
+        "vf50_nme": 2.3225,
+        "count": 759.0
+      },
+      "val_ir": {
+        "wflw98_nme": 3.5808,
+        "vf50_nme": 3.018,
+        "count": 759.0
+      }
+    },
+    {
+      "stage": 1,
+      "epoch": 2,
+      "epoch_sec": 157.0,
+      "loss": 0.03843,
+      "val_clean": {
+        "wflw98_nme": 2.6561,
+        "vf50_nme": 2.2572,
+        "count": 759.0
+      },
+      "val_ir": {
+        "wflw98_nme": 3.5441,
+        "vf50_nme": 2.9772,
+        "count": 759.0
+      }
+    },
+    {
+      "stage": 1,
+      "epoch": 3,
+      "epoch_sec": 155.4,
+      "loss": 0.0377,
+      "val_clean": {
+        "wflw98_nme": 2.6476,
+        "vf50_nme": 2.2556,
+        "count": 759.0
+      },
+      "val_ir": {
+        "wflw98_nme": 3.5252,
+        "vf50_nme": 2.9812,
+        "count": 759.0
+      }
+    },
+    {
+      "stage": 1,
+      "epoch": 4,
+      "epoch_sec": 156.2,
+      "loss": 0.03836,
+      "val_clean": {
+        "wflw98_nme": 2.6492,
+        "vf50_nme": 2.2591,
+        "count": 759.0
+      },
+      "val_ir": {
+        "wflw98_nme": 3.5145,
+        "vf50_nme": 2.9604,
+        "count": 759.0
+      }
+    },
+    {
+      "stage": 2,
+      "epoch": 5,
+      "epoch_sec": 507.3,
+      "loss": 0.04202,
+      "val_clean": {
+        "wflw98_nme": 2.7052,
+        "vf50_nme": 2.2908,
+        "count": 759.0
+      },
+      "val_ir": {
+        "wflw98_nme": 3.4404,
+        "vf50_nme": 2.9,
+        "count": 759.0
+      }
+    },
+    {
+      "stage": 2,
+      "epoch": 6,
+      "epoch_sec": 852.9,
+      "loss": 0.0428,
+      "val_clean": {
+        "wflw98_nme": 2.7097,
+        "vf50_nme": 2.2941,
+        "count": 759.0
+      },
+      "val_ir": {
+        "wflw98_nme": 3.4237,
+        "vf50_nme": 2.8804,
+        "count": 759.0
+      }
+    }
+  ],
+  "test_baseline_clean": {
+    "wflw98_nme": 4.1043,
+    "vf50_nme": 3.2136,
+    "count": 2500.0,
+    "pose_vf50_nme": 5.7763,
+    "pose_wflw98_nme": 7.2222,
+    "blur_vf50_nme": 3.7873,
+    "blur_wflw98_nme": 4.6888,
+    "occlusion_vf50_nme": 3.9687,
+    "occlusion_wflw98_nme": 4.9887,
+    "illumination_vf50_nme": 3.2122,
+    "illumination_wflw98_nme": 4.046
+  },
+  "test_finetuned_clean": {
+    "wflw98_nme": 4.1275,
+    "vf50_nme": 3.2723,
+    "count": 2500.0,
+    "pose_vf50_nme": 5.8373,
+    "pose_wflw98_nme": 7.1783,
+    "blur_vf50_nme": 3.8898,
+    "blur_wflw98_nme": 4.7337,
+    "occlusion_vf50_nme": 4.0082,
+    "occlusion_wflw98_nme": 4.9823,
+    "illumination_vf50_nme": 3.292,
+    "illumination_wflw98_nme": 4.1146
+  },
+  "test_baseline_ir": {
+    "wflw98_nme": 5.0682,
+    "vf50_nme": 4.1836,
+    "count": 2500.0,
+    "pose_vf50_nme": 7.8782,
+    "pose_wflw98_nme": 9.2214,
+    "blur_vf50_nme": 4.9571,
+    "blur_wflw98_nme": 5.8328,
+    "occlusion_vf50_nme": 5.103,
+    "occlusion_wflw98_nme": 6.0292,
+    "illumination_vf50_nme": 4.3581,
+    "illumination_wflw98_nme": 5.1466
+  },
+  "test_finetuned_ir": {
+    "wflw98_nme": 4.8146,
+    "vf50_nme": 3.9599,
+    "count": 2500.0,
+    "pose_vf50_nme": 7.2443,
+    "pose_wflw98_nme": 8.4831,
+    "blur_vf50_nme": 4.6223,
+    "blur_wflw98_nme": 5.4815,
+    "occlusion_vf50_nme": 4.8968,
+    "occlusion_wflw98_nme": 5.8023,
+    "illumination_vf50_nme": 4.0504,
+    "illumination_wflw98_nme": 4.8184
+  }
+}

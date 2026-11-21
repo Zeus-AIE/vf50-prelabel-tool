@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VF-50 Local Pre-label Tool • CVAT 1.1</title>
+  <style>
+    :root {
+      --bg: #0f1319;
+      --panel: #161b24;
+      --panel-2: #1d2430;
+      --border: #2a3342;
+      --text: #e8eef7;
+      --muted: #93a1b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-size: 13px;
+    }
+    header {
+      height: 46px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #1e3a8a;
+      color: #93c5fd;
+      font-weight: 600;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 300px 1fr 310px;
+      min-height: 0;
+    }
+    aside {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 12px;
+      gap: 12px;
+    }
+    aside.right {
+      border-right: none;
+      border-left: 1px solid var(--border);
+    }
+    .card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .card h3 {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    input[type="text"], select {
+      width: 100%;
+      background: #0d1117;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 12px;
+      outline: none;
+    }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .row { display: flex; gap: 6px; align-items: center; }
+    .row > * { flex: 1; }
+    button {
+      background: #242d3c;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.12s ease;
+    }
+    button:hover { background: #2f3b4f; }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    button.primary:hover { background: var(--accent-hover); }
+    button.success {
+      background: #15803d;
+      border-color: #16a34a;
+      color: #fff;
+    }
+    button.success:hover { background: #166534; }
+    button.active-tool {
+      background: #7c3aed;
+      border-color: #8b5cf6;
+      color: #fff;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .img-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    .img-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: #131820;
+    }
+    .img-item:hover { border-color: #3b475c; }
+    .img-item.active {
+      border-color: var(--accent);
+      background: #172554;
+    }
+    .img-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 185px;
+    }
+    .pill {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .pill-idle { background: #293241; color: #94a3b8; }
+    .pill-ok { background: #14532d; color: #86efac; }
+    .pill-qc { background: #78350f; color: #fde68a; }
+    .pill-miss { background: #7f1d1d; color: #fca5a5; }
+    .canvas-wrap {
+      position: relative;
+      background: #080a0e;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+    }
+    .toolbar {
+      height: 38px;
+      background: #12161f;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      flex-shrink: 0;
+    }
+    .toolbar .spacer { flex: 1; }
+    canvas {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+    .skel-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: #141922;
+      border: 1px solid #232c3b;
+      margin-bottom: 6px;
+    }
+    .skel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .skel-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .mini-btns {
+      display: flex;
+      gap: 4px;
+    }
+    .mini-btns button {
+      padding: 2px 6px;
+      font-size: 11px;
+    }
+    .qc-box {
+      padding: 7px 9px;
+      border-radius: 6px;
+      background: #271b0e;
+      border: 1px solid #854d0e;
+      color: #fde68a;
+      margin-bottom: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .qc-box strong { color: #fbbf24; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .stat-cell {
+      background: #121720;
+      border: 1px solid #232c3b;
+      border-radius: 6px;
+      padding: 6px 8px;
+    }
+    .stat-cell .k { font-size: 11px; color: var(--muted); }
+    .stat-cell .v { font-size: 13px; font-weight: 700; margin-top: 2px; }
+    .hint {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    #statusBar {
+      font-size: 12px;
+      color: #93c5fd;
+    }
+    .level-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      margin-bottom: 6px;
+    }
+    .level-btn {
+      padding: 6px 4px;
+      font-size: 11.5px;
+      text-align: center;
+      background: #131820;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .level-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 700;
+    }
+    .paste-box {
+      margin-top: 8px;
+      padding: 8px;
+      border: 1.5px dashed #3b475c;
+      border-radius: 6px;
+      background: #11161f;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .paste-box.drag-over, .canvas-wrap.drag-over {
+      border-color: var(--accent);
+      background: #172554;
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .section-head h3 {
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span>VF-50 Local Pre-label Tool</span>
+      <span class="badge" id="hdrBadge">Mức 2: SCRFD-10G + SPIGA-IR + TUFA + 6DRepNet</span>
+    </div>
+    <div id="statusBar">Sẵn sàng — Nạp thư mục hoặc upload ảnh để bắt đầu.</div>
+    <div class="header-actions">
+      <button id="btnRunCurrent" class="primary" onclick="predictCurrent()">Chạy Ảnh Này</button>
+      <button id="btnRunBatch" class="primary" onclick="predictBatch()">Chạy Tất Cả</button>
+      <button id="btnExportXml" class="success" onclick="exportCVAT()">Xuất CVAT XML</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT PANEL -->
+    <aside>
+      <div class="card">
+        <h3>1. Nguồn dữ liệu</h3>
+        <label>Đường dẫn thư mục ảnh (local)</label>
+        <div class="row" style="margin-bottom:8px;">
+          <input id="folderInput" type="text" placeholder="VD: D:\VinUni\data\batch1" />
+          <button style="flex:0 0 auto;" onclick="loadFolder()">Nạp</button>
+        </div>
+        <label>Hoặc upload ảnh trực tiếp</label>
+        <input id="uploadInput" type="file" multiple accept="image/*" style="width:100%; font-size:11px;" onchange="uploadFiles()" />
+        <div id="pasteBox" class="paste-box">
+          <button id="btnPasteClipboard" type="button" onclick="pasteFromClipboardButton()">📋 Dán ảnh (Ctrl+V)</button>
+          <span class="hint">Nhấn <b>Ctrl+V</b> ở bất kỳ đâu trên trang hoặc kéo thả ảnh chụp màn hình vào đây / canvas.</span>
+          <label style="display:flex; align-items:center; gap:5px; margin:0; cursor:pointer; color:var(--text);">
+            <input id="chkAutoPredictPaste" type="checkbox" checked /> Tự chạy Pre-label ngay khi dán
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>2. Cấu hình Pre-label</h3>
+        <label>Chọn nhanh Mức độ (1–3)</label>
+        <div id="levelBtnGroup" class="level-bar"></div>
+        <div id="levelDesc" class="hint" style="margin-bottom:8px;">-</div>
+        <div style="margin-bottom:8px;">
+          <label>Model Weights SPIGA</label>
+          <select id="weightsSelect" onchange="syncPresetHighlight()"></select>
+        </div>
+        <div class="row" style="margin-bottom:8px;">
+          <div>
+            <label>Detector</label>
+            <select id="detectorSelect" onchange="syncPresetHighlight()"></select>
+          </div>
+          <div>
+            <label>Landmark Engine</label>
+            <select id="ensembleSelect" onchange="syncPresetHighlight()"></select>
+          </div>
+        </div>
+        <div class="row" style="margin-bottom:8px;">
+          <div>
+            <label>Headpose</label>
+            <select id="headposeSelect" onchange="syncPresetHighlight()"></select>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px; padding-top:4px;">
+            <label style="display:flex; align-items:center; gap:5px; margin:0; cursor:pointer; color:var(--text);">
+              <input id="chkTTA" type="checkbox" checked onchange="syncPresetHighlight()" /> Flip TTA
+            </label>
+            <label style="display:flex; align-items:center; gap:5px; margin:0; cursor:pointer; color:var(--text);">
+              <input id="chkTwoPass" type="checkbox" checked onchange="syncPresetHighlight()" /> 2-Pass Refine
+            </label>
+          </div>
+        </div>
+        <div class="row" style="margin-bottom:8px;">
+          <div>
+            <label>Xoay ảnh trước detect</label>
+            <select id="rotateMode">
+              <option value="0" selected>0° (Giữ nguyên - Mặc định)</option>
+              <option value="90cw">90° CW (Thuận KĐH)</option>
+              <option value="90ccw">90° CCW (Ngược KĐH)</option>
+              <option value="180">180°</option>
+              <option value="auto">Auto (Tự xoay khi ảnh rõ nét)</option>
+            </select>
+          </div>
+          <div>
+            <label>Chọn mặt người lái</label>
+            <select id="driverSide">
+              <option value="largest" selected>Mặt lớn nhất</option>
+              <option value="left">Bên trái ảnh</option>
+              <option value="right">Bên phải ảnh</option>
+              <option value="center">Gần tâm ảnh</option>
+            </select>
+          </div>
+        </div>
+        <label>Ngưỡng |Yaw| → Occluded: <strong id="lblYawOcc">35°</strong></label>
+        <input id="yawOcc" type="range" min="15" max="60" step="1" value="35" oninput="document.getElementById('lblYawOcc').textContent=this.value+'°'" />
+        <label style="margin-top:6px;">Ngưỡng |Yaw| → Outside: <strong id="lblYawOut">55°</strong></label>
+        <input id="yawOut" type="range" min="30" max="80" step="1" value="55" oninput="document.getElementById('lblYawOut').textContent=this.value+'°'" />
+      </div>
+
+      <div class="card">
+        <h3>3. Xuất CVAT XML</h3>
+        <label>Template XML từ CVAT task (tùy chọn)</label>
+        <input id="templateXmlInput" type="file" accept=".xml" style="width:100%; font-size:11px; margin-bottom:8px;" />
+        <label>Thư mục lưu file trên máy (tùy chọn)</label>
+        <input id="exportDirInput" type="text" placeholder="Để trống = chỉ tải xuống trình duyệt" />
+      </div>
+
+      <div class="card" style="flex:1; min-height:140px; display:flex; flex-direction:column;">
+        <div class="section-head">
+          <h3>4. Danh sách ảnh (<span id="imgCount">0</span>)</h3>
+          <button type="button" style="padding:2px 8px; font-size:11px;" onclick="clearAllImages()">Xóa hết</button>
+        </div>
+        <div id="imgList" class="img-list"></div>
+      </div>
+    </aside>
+
+    <!-- CENTER CANVAS -->
+    <section class="canvas-wrap">
+      <div class="toolbar">
+        <button onclick="prevImage()">◀ Trước</button>
+        <button onclick="nextImage()">Sau ▶</button>
+        <button onclick="resetView()">Reset Zoom</button>
+        <button id="btnManualBox" onclick="toggleManualBox()">Vẽ khung mặt (B)</button>
+        <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;">
+          <input id="chkShowIds" type="checkbox" checked onchange="drawCanvas()" /> Hiện ID 0–49
+        </label>
+        <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;">
+          <input id="chkShowOutside" type="checkbox" onchange="drawCanvas()" /> Hiện điểm Outside
+        </label>
+        <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;">
+          <input id="chkShowUncertainty" type="checkbox" checked onchange="drawCanvas()" /> Hiện vòng bất định (Uncertainty)
+        </label>
+        <div class="spacer"></div>
+        <span id="hoverInfo" class="hint">Hover điểm: V=Visible | O=Occluded | X=Outside | Chuột phải=Đổi trạng thái</span>
+      </div>
+      <canvas id="canvas"></canvas>
+    </section>
+
+    <!-- RIGHT PANEL -->
+    <aside class="right">
+      <div class="card">
+        <h3>Thông số Frame & Headpose</h3>
+        <div class="stats-grid">
+          <div class="stat-cell"><div class="k">Yaw / Pitch / Roll</div><div class="v" id="statPose">-</div></div>
+          <div class="stat-cell"><div class="k">Detect Score / Rot</div><div class="v" id="statDetect">-</div></div>
+          <div class="stat-cell"><div class="k">Độ nét (Laplacian)</div><div class="v" id="statSharp">-</div></div>
+          <div class="stat-cell"><div class="k">V / Occ / Out</div><div class="v" id="statCounts">-</div></div>
+          <div class="stat-cell"><div class="k">Độ chắc chắn TB</div><div class="v" id="statConfidence">-</div></div>
+          <div class="stat-cell"><div class="k">Stack đang chạy</div><div class="v" id="statStack" style="font-size:11px; line-height:1.25;">-</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>7 Skeleton VF-50 (Đặt nhanh cả nhóm)</h3>
+        <div id="skelControls"></div>
+      </div>
+
+      <div class="card">
+        <h3>Cảnh báo QC (Mục 5 Guideline)</h3>
+        <div id="qcPanel" class="hint">Chưa có cảnh báo.</div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    let SCHEMA = null;
+    let IMAGES = [];
+    let CURRENT_IDX = -1;
+    let CURRENT_IMG_EL = null;
+
+    // Viewport transform
+    let viewScale = 1.0;
+    let viewOx = 0.0;
+    let viewOy = 0.0;
+
+    // Interaction state
+    let dragPointId = null;
+    let hoverPointId = null;
+    let isPanning = false;
+    let panStartX = 0, panStartY = 0;
+    let manualBoxMode = false;
+    let drawingBox = false;
+    let boxStart = null;
+    let boxEnd = null;
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    function setStatus(msg, color = "#93c5fd") {
+      const el = document.getElementById("statusBar");
+      el.textContent = msg;
+      el.style.color = color;
+    }
+
+    function fillSelect(selId, items, defaultVal, labelMap) {
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      sel.innerHTML = "";
+      const list = items && items.length ? items : [defaultVal];
+      list.forEach(val => {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = labelMap[val] || val;
+        if (val === defaultVal) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderLevelButtons() {
+      const grp = document.getElementById("levelBtnGroup");
+      if (!grp || !SCHEMA || !SCHEMA.level_presets) return;
+      grp.innerHTML = "";
+      SCHEMA.level_presets.forEach(p => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "level-btn";
+        btn.dataset.levelId = p.id;
+        btn.textContent = p.label;
+        btn.title = `${p.title}: ${p.description}`;
+        btn.disabled = !p.available;
+        btn.onclick = () => applyLevelPreset(p.id);
+        grp.appendChild(btn);
+      });
+    }
+
+    function applyLevelPreset(levelId) {
+      if (!SCHEMA || !SCHEMA.level_presets) return;
+      const preset = SCHEMA.level_presets.find(p => p.id === levelId);
+      if (!preset || !preset.available) return;
+      const c = preset.config;
+      document.getElementById("weightsSelect").value = c.weights_name;
+      document.getElementById("detectorSelect").value = c.detector_mode;
+      document.getElementById("ensembleSelect").value = c.ensemble_mode;
+      document.getElementById("headposeSelect").value = c.headpose_mode;
+      document.getElementById("chkTTA").checked = !!c.use_tta;
+      document.getElementById("chkTwoPass").checked = !!c.use_two_pass;
+      syncPresetHighlight();
+    }
+
+    function syncPresetHighlight() {
+      if (!SCHEMA || !SCHEMA.level_presets) return;
+      const curW = document.getElementById("weightsSelect").value;
+      const curD = document.getElementById("detectorSelect").value;
+      const curE = document.getElementById("ensembleSelect").value;
+      const curH = document.getElementById("headposeSelect").value;
+      const curTTA = document.getElementById("chkTTA").checked;
+      const curTP = document.getElementById("chkTwoPass").checked;
+
+      let matched = null;
+      for (const p of SCHEMA.level_presets) {
+        const c = p.config;
+        if (
+          p.available &&
+          curW === c.weights_name &&
+          curD === c.detector_mode &&
+          curE === c.ensemble_mode &&
+          curH === c.headpose_mode &&
+          curTTA === !!c.use_tta &&
+          curTP === !!c.use_two_pass
+        ) {
+          matched = p;
+          break;
+        }
+      }
+
+      document.querySelectorAll("#levelBtnGroup .level-btn").forEach(btn => {
+        btn.classList.toggle("active", !!(matched && btn.dataset.levelId === matched.id));
+      });
+
+      const descEl = document.getElementById("levelDesc");
+      const badge = document.getElementById("hdrBadge");
+      if (matched) {
+        if (descEl) descEl.textContent = `${matched.title}: ${matched.description}`;
+        if (badge) badge.textContent = `${matched.label} (${matched.title})`;
+      } else {
+        if (descEl) descEl.textContent = `Tùy chỉnh (Custom): ${curD.toUpperCase()} + ${curE} + ${curW}`;
+        if (badge) badge.textContent = `Custom: ${curD.toUpperCase()} + ${curE}`;
+      }
+    }
+
+    function populateModelSelectors() {
+      if (!SCHEMA) return;
+      fillSelect("weightsSelect", SCHEMA.available_weights, SCHEMA.default_weights || "spiga_wflw.pt", {
+        "spiga_wflw_ir_vf50.pt": "spiga_wflw_ir_vf50.pt (Fine-tuned IR - Khuyên dùng)",
+        "spiga_wflw.pt": "spiga_wflw.pt (Gốc RGB)",
+      });
+      fillSelect("detectorSelect", SCHEMA.available_detectors, SCHEMA.default_detector || "yunet", {
+        "scrfd10g": "SCRFD-10G (Mức 2/3 - Khuyên dùng)",
+        "yunet": "YuNet (Mức 1 - Nhanh)",
+      });
+      fillSelect("ensembleSelect", SCHEMA.available_ensembles, SCHEMA.default_ensemble || "spiga_only", {
+        "spiga_tufa": "Ensemble: SPIGA + TUFA (Mức 2/3)",
+        "spiga_only": "SPIGA đơn lẻ (Mức 1)",
+      });
+      fillSelect("headposeSelect", SCHEMA.available_headposes, SCHEMA.default_headpose || "spiga", {
+        "6drepnet": "6DRepNet (Mức 2/3)",
+        "spiga": "SPIGA tích hợp (Mức 1)",
+      });
+      renderLevelButtons();
+      applyLevelPreset(SCHEMA.default_level || "level3");
+    }
+
+    function setupPasteAndDrop() {
+      window.addEventListener("paste", async e => {
+        const dt = e.clipboardData;
+        if (!dt) return;
+        const imgFiles = [];
+        if (dt.items) {
+          for (const item of dt.items) {
+            if (item.kind === "file" && item.type.startsWith("image/")) {
+              const f = item.getAsFile();
+              if (f) imgFiles.push(f);
+            }
+          }
+        }
+        if (!imgFiles.length && dt.files) {
+          for (const f of dt.files) {
+            if (f.type && f.type.startsWith("image/")) imgFiles.push(f);
+          }
+        }
+        if (!imgFiles.length) return;
+        e.preventDefault();
+        for (const f of imgFiles) {
+          await pasteImageFile(f);
+        }
+      });
+
+      const dropTargets = [
+        document.getElementById("pasteBox"),
+        document.querySelector(".canvas-wrap"),
+      ].filter(Boolean);
+      dropTargets.forEach(el => {
+        el.addEventListener("dragover", e => {
+          e.preventDefault();
+          el.classList.add("drag-over");
+        });
+        el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
+        el.addEventListener("drop", async e => {
+          e.preventDefault();
+          el.classList.remove("drag-over");
+          const files = e.dataTransfer && e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+          const imgs = files.filter(f => f.type.startsWith("image/") || /\.(png|jpe?g|bmp|webp)$/i.test(f.name));
+          if (!imgs.length) return;
+          for (const f of imgs) {
+            await pasteImageFile(f);
+          }
+        });
+      });
+    }
+
+    async function init() {
+      const res = await fetch("/api/schema");
+      SCHEMA = await res.json();
+      populateModelSelectors();
+      setupPasteAndDrop();
+      resizeCanvas();
+      window.addEventListener("resize", resizeCanvas);
+      await refreshImageList();
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = Math.max(300, Math.floor(rect.width));
+      canvas.height = Math.max(200, Math.floor(rect.height - 38));
+      drawCanvas();
+    }
+
+    async function refreshImageList(keepIdx = false) {
+      const res = await fetch("/api/images");
+      const data = await res.json();
+      IMAGES = data.images || [];
+      if (data.source_dir && !document.getElementById("folderInput").value) {
+        document.getElementById("folderInput").value = data.source_dir;
+      }
+      renderImageList();
+      if (IMAGES.length > 0) {
+        const idx = keepIdx && CURRENT_IDX >= 0 && CURRENT_IDX < IMAGES.length ? CURRENT_IDX : 0;
+        await selectImage(idx);
+      } else {
+        CURRENT_IDX = -1;
+        CURRENT_IMG_EL = null;
+        drawCanvas();
+      }
+    }
+
+    function renderImageList() {
+      document.getElementById("imgCount").textContent = IMAGES.length;
+      const listEl = document.getElementById("imgList");
+      listEl.innerHTML = "";
+      IMAGES.forEach((item, idx) => {
+        const div = document.createElement("div");
+        div.className = "img-item" + (idx === CURRENT_IDX ? " active" : "");
+        div.onclick = () => selectImage(idx);
+
+        let pillCls = "pill-idle";
+        let pillTxt = "Chờ";
+        if (item.prediction) {
+          if (!item.prediction.detected) {
+            pillCls = "pill-miss";
+            pillTxt = "Mất mặt";
+          } else if (item.prediction.qc_flags && item.prediction.qc_flags.length > 0) {
+            pillCls = "pill-qc";
+            pillTxt = "QC";
+          } else {
+            pillCls = "pill-ok";
+            pillTxt = "OK";
+          }
+        }
+        div.innerHTML = `<span class="img-name" title="${item.image_name}">${item.image_name}</span><span class="pill ${pillCls}">${pillTxt}</span>`;
+        listEl.appendChild(div);
+      });
+    }
+
+    async function selectImage(idx) {
+      if (idx < 0 || idx >= IMAGES.length) return;
+      CURRENT_IDX = idx;
+      renderImageList();
+      updateRightPanel();
+
+      const item = IMAGES[idx];
+      const img = new Image();
+      img.onload = () => {
+        CURRENT_IMG_EL = img;
+        resetView();
+      };
+      img.src = `/api/image/${item.image_id}?t=${Date.now()}`;
+    }
+
+    function resetView() {
+      if (!CURRENT_IMG_EL) return;
+      const pad = 20;
+      const sx = (canvas.width - pad * 2) / CURRENT_IMG_EL.width;
+      const sy = (canvas.height - pad * 2) / CURRENT_IMG_EL.height;
+      viewScale = Math.min(sx, sy);
+      viewOx = (canvas.width - CURRENT_IMG_EL.width * viewScale) * 0.5;
+      viewOy = (canvas.height - CURRENT_IMG_EL.height * viewScale) * 0.5;
+      drawCanvas();
+    }
+
+    function screenToImage(sx, sy) {
+      return {
+        x: (sx - viewOx) / viewScale,
+        y: (sy - viewOy) / viewScale,
+      };
+    }
+
+    function imageToScreen(ix, iy) {
+      return {
+        x: ix * viewScale + viewOx,
+        y: iy * viewScale + viewOy,
+      };
+    }
+
+    function getCurrentPred() {
+      if (CURRENT_IDX < 0 || CURRENT_IDX >= IMAGES.length) return null;
+      return IMAGES[CURRENT_IDX].prediction;
+    }
+
+    function drawCanvas() {
+      ctx.fillStyle = "#080a0e";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!CURRENT_IMG_EL) return;
+
+      ctx.save();
+      ctx.translate(viewOx, viewOy);
+      ctx.scale(viewScale, viewScale);
+      ctx.drawImage(CURRENT_IMG_EL, 0, 0);
+      ctx.restore();
+
+      const pred = getCurrentPred();
+      if (pred && pred.bbox_orig) {
+        const [bx, by, bw, bh] = pred.bbox_orig;
+        const p1 = imageToScreen(bx, by);
+        const p2 = imageToScreen(bx + bw, by + bh);
+        ctx.strokeStyle = "rgba(96, 165, 250, 0.85)";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+      }
+
+      if (drawingBox && boxStart && boxEnd) {
+        const p1 = imageToScreen(Math.min(boxStart.x, boxEnd.x), Math.min(boxStart.y, boxEnd.y));
+        const p2 = imageToScreen(Math.max(boxStart.x, boxEnd.x), Math.max(boxStart.y, boxEnd.y));
+        ctx.strokeStyle = "#a855f7";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 4]);
+        ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+        ctx.setLineDash([]);
+      }
+
+      if (!pred || !pred.points || !SCHEMA) return;
+
+      const ptsMap = {};
+      pred.points.forEach(p => { ptsMap[p.point_id] = p; });
+      const showOutside = document.getElementById("chkShowOutside").checked;
+      const showIds = document.getElementById("chkShowIds").checked;
+      const showUnc = document.getElementById("chkShowUncertainty").checked;
+
+      // Draw edges
+      SCHEMA.skeletons.forEach(sk => {
+        ctx.strokeStyle = sk.stroke_hex;
+        ctx.lineWidth = 2;
+        sk.edges.forEach(([a, b]) => {
+          const pa = ptsMap[a];
+          const pb = ptsMap[b];
+          if (!pa || !pb) return;
+          if (!showOutside && (pa.outside || pb.outside)) return;
+          const sa = imageToScreen(pa.x, pa.y);
+          const sb = imageToScreen(pb.x, pb.y);
+          ctx.save();
+          if (pa.outside || pb.outside) {
+            ctx.globalAlpha = 0.25;
+            ctx.setLineDash([3, 3]);
+          }
+          ctx.beginPath();
+          ctx.moveTo(sa.x, sa.y);
+          ctx.lineTo(sb.x, sb.y);
+          ctx.stroke();
+          ctx.restore();
+        });
+      });
+
+      // Draw keypoints
+      pred.points.forEach(pt => {
+        if (pt.outside && !showOutside) return;
+        const s = imageToScreen(pt.x, pt.y);
+        const isHot = pt.point_id === hoverPointId || pt.point_id === dragPointId;
+        const r = isHot ? 6 : 4.5;
+
+        ctx.save();
+        if (pt.outside) ctx.globalAlpha = 0.35;
+
+        // Per-point uncertainty halo when confidence < 0.65
+        if (showUnc && !pt.outside && pt.confidence !== undefined && pt.confidence < 0.65) {
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, r + 4.5, 0, Math.PI * 2);
+          ctx.strokeStyle = pt.confidence >= 0.45 ? "#f97316" : "#ef4444";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        // Border: black = Visible, white = Occluded, red dashed = Outside
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r + 1.8, 0, Math.PI * 2);
+        ctx.fillStyle = pt.outside ? "#ef4444" : (pt.occluded ? "#ffffff" : "#000000");
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = SCHEMA.point_colors[pt.point_id] || "#fde047";
+        ctx.fill();
+
+        if (showIds) {
+          ctx.font = "bold 11px Segoe UI, sans-serif";
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "#000000";
+          ctx.strokeText(String(pt.point_id), s.x + 7, s.y - 5);
+          ctx.fillStyle = pt.outside ? "#fca5a5" : (pt.occluded ? "#7dd3fc" : "#ffffff");
+          ctx.fillText(String(pt.point_id), s.x + 7, s.y - 5);
+        }
+        ctx.restore();
+      });
+    }
+
+    function findNearestPoint(sx, sy, maxDist = 11) {
+      const pred = getCurrentPred();
+      if (!pred || !pred.points) return null;
+      const showOutside = document.getElementById("chkShowOutside").checked;
+      let best = null;
+      let bestDist = maxDist;
+      pred.points.forEach(pt => {
+        if (pt.outside && !showOutside) return;
+        const s = imageToScreen(pt.x, pt.y);
+        const d = Math.hypot(s.x - sx, s.y - sy);
+        if (d < bestDist) {
+          bestDist = d;
+          best = pt;
+        }
+      });
+      return best;
+    }
+
+    async function saveCurrentEdits() {
+      if (CURRENT_IDX < 0) return;
+      const item = IMAGES[CURRENT_IDX];
+      if (!item.prediction) return;
+      await fetch(`/api/update/${item.image_id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          points: item.prediction.points.map(p => ({
+            point_id: p.point_id,
+            x: p.x,
+            y: p.y,
+            occluded: p.occluded,
+            outside: p.outside,
+          })),
+          bbox_orig: item.prediction.bbox_orig,
+        }),
+      });
+      updateRightPanel();
+    }
+
+    function updateRightPanel() {
+      const pred = getCurrentPred();
+      const poseEl = document.getElementById("statPose");
+      const detEl = document.getElementById("statDetect");
+      const sharpEl = document.getElementById("statSharp");
+      const cntEl = document.getElementById("statCounts");
+      const confEl = document.getElementById("statConfidence");
+      const stackEl = document.getElementById("statStack");
+      const skelEl = document.getElementById("skelControls");
+      const qcEl = document.getElementById("qcPanel");
+
+      if (!pred) {
+        poseEl.textContent = "-";
+        detEl.textContent = "-";
+        sharpEl.textContent = "-";
+        cntEl.textContent = "-";
+        confEl.textContent = "-";
+        stackEl.textContent = "-";
+        skelEl.innerHTML = `<div class="hint">Chưa có nhãn cho ảnh này. Nhấn <b>Chạy Ảnh Này</b>.</div>`;
+        qcEl.innerHTML = `<div class="hint">Chưa chạy pre-label.</div>`;
+        return;
+      }
+
+      poseEl.textContent = `${pred.yaw.toFixed(1)}° / ${pred.pitch.toFixed(1)}° / ${pred.roll.toFixed(1)}°`;
+      detEl.textContent = `${pred.detected ? pred.face_score.toFixed(2) : "0"} | ${pred.rotation_applied}`;
+      sharpEl.textContent = pred.laplacian_var.toFixed(1);
+
+      const vis = pred.points.filter(p => !p.outside && !p.occluded).length;
+      const occ = pred.points.filter(p => !p.outside && p.occluded).length;
+      const out = pred.points.filter(p => p.outside).length;
+      cntEl.textContent = `${vis} / ${occ} / ${out}`;
+
+      const mc = pred.mean_confidence !== undefined ? Math.round(pred.mean_confidence * 100) : 100;
+      const mu = pred.max_uncertainty_px !== undefined ? pred.max_uncertainty_px.toFixed(1) : "0.0";
+      confEl.textContent = `${mc}% (max ±${mu}px)`;
+      const detTag = (pred.detector_used || "yunet").toUpperCase();
+      const engTag = (pred.engine_used || "spiga_only").toUpperCase();
+      const hpTag = (pred.headpose_used || "spiga").toUpperCase();
+      stackEl.textContent = `${detTag} + ${engTag} + ${hpTag}`;
+
+      if (SCHEMA) {
+        skelEl.innerHTML = "";
+        SCHEMA.skeletons.forEach(sk => {
+          const pts = pred.points.filter(p => sk.point_ids.includes(p.point_id));
+          const sv = pts.filter(p => !p.outside && !p.occluded).length;
+          const so = pts.filter(p => !p.outside && p.occluded).length;
+          const sx = pts.filter(p => p.outside).length;
+          const row = document.createElement("div");
+          row.className = "skel-row";
+          row.innerHTML = `
+            <div class="skel-head">
+              <span><span class="skel-dot" style="background:${sk.stroke_hex}"></span><b>${sk.name}</b></span>
+              <span class="hint">V:${sv} O:${so} Out:${sx}</span>
+            </div>
+            <div class="mini-btns">
+              <button onclick="setSkeletonState('${sk.name}', 0, 0)">Visible</button>
+              <button onclick="setSkeletonState('${sk.name}', 1, 0)">Occluded</button>
+              <button onclick="setSkeletonState('${sk.name}', 0, 1)">Outside</button>
+            </div>
+          `;
+          skelEl.appendChild(row);
+        });
+      }
+
+      if (pred.qc_flags && pred.qc_flags.length > 0) {
+        qcEl.innerHTML = pred.qc_flags.map(f => `<div class="qc-box"><strong>${f.issue_type}</strong><br/>${f.reason}</div>`).join("");
+      } else {
+        qcEl.innerHTML = `<div style="color:#86efac;">Không có cảnh báo QC.</div>`;
+      }
+    }
+
+    async function setSkeletonState(skelName, occ, out) {
+      const pred = getCurrentPred();
+      if (!pred) return;
+      pred.points.forEach(p => {
+        if (p.skeleton === skelName) {
+          p.occluded = occ;
+          p.outside = out;
+        }
+      });
+      drawCanvas();
+      await saveCurrentEdits();
+    }
+
+    function toggleManualBox() {
+      manualBoxMode = !manualBoxMode;
+      const btn = document.getElementById("btnManualBox");
+      btn.classList.toggle("active-tool", manualBoxMode);
+      setStatus(manualBoxMode ? "Chế độ vẽ khung mặt: Kéo chuột trái để khoanh mặt người lái." : "Đã tắt chế độ vẽ khung mặt.");
+    }
+
+    canvas.addEventListener("contextmenu", e => e.preventDefault());
+
+    canvas.addEventListener("wheel", e => {
+      e.preventDefault();
+      if (!CURRENT_IMG_EL) return;
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const before = screenToImage(sx, sy);
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      viewScale = Math.max(0.1, Math.min(12.0, viewScale * factor));
+      viewOx = sx - before.x * viewScale;
+      viewOy = sy - before.y * viewScale;
+      drawCanvas();
+    }, { passive: false });
+
+    canvas.addEventListener("mousedown", async e => {
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+
+      if (e.button === 1 || (e.button === 0 && e.altKey)) {
+        isPanning = true;
+        panStartX = sx - viewOx;
+        panStartY = sy - viewOy;
+        return;
+      }
+
+      if (manualBoxMode && e.button === 0) {
+        drawingBox = true;
+        boxStart = screenToImage(sx, sy);
+        boxEnd = boxStart;
+        drawCanvas();
+        return;
+      }
+
+      const hit = findNearestPoint(sx, sy);
+      if (e.button === 2) {
+        if (hit) {
+          // Cycle Visible -> Occluded -> Outside -> Visible
+          if (hit.outside) { hit.outside = 0; hit.occluded = 0; }
+          else if (hit.occluded) { hit.occluded = 0; hit.outside = 1; }
+          else { hit.occluded = 1; hit.outside = 0; }
+          drawCanvas();
+          await saveCurrentEdits();
+        } else {
+          isPanning = true;
+          panStartX = sx - viewOx;
+          panStartY = sy - viewOy;
+        }
+        return;
+      }
+
+      if (e.button === 0 && hit) {
+        dragPointId = hit.point_id;
+        hoverPointId = hit.point_id;
+        drawCanvas();
+      } else if (e.button === 0) {
+        isPanning = true;
+        panStartX = sx - viewOx;
+        panStartY = sy - viewOy;
+      }
+    });
+
+    canvas.addEventListener("mousemove", e => {
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+
+      if (isPanning) {
+        viewOx = sx - panStartX;
+        viewOy = sy - panStartY;
+        drawCanvas();
+        return;
+      }
+
+      if (drawingBox) {
+        boxEnd = screenToImage(sx, sy);
+        drawCanvas();
+        return;
+      }
+
+      if (dragPointId !== null) {
+        const pred = getCurrentPred();
+        if (pred) {
+          const pt = pred.points.find(p => p.point_id === dragPointId);
+          if (pt) {
+            const pos = screenToImage(sx, sy);
+            pt.x = pos.x;
+            pt.y = pos.y;
+            drawCanvas();
+          }
+        }
+        return;
+      }
+
+      const hit = findNearestPoint(sx, sy);
+      const nextHover = hit ? hit.point_id : null;
+      if (nextHover !== hoverPointId) {
+        hoverPointId = nextHover;
+        drawCanvas();
+      }
+      if (hit) {
+        const st = hit.outside ? "Outside" : (hit.occluded ? "Occluded" : "Visible");
+        const confPct = hit.confidence !== undefined ? Math.round(hit.confidence * 100) : 100;
+        const uncPx = hit.uncertainty_px !== undefined ? hit.uncertainty_px.toFixed(1) : "0.0";
+        document.getElementById("hoverInfo").textContent = `ID ${hit.point_id} (${hit.skeleton}) • ${st} • Conf ${confPct}% (±${uncPx}px) • V/O/X`;
+      }
+    });
+
+    window.addEventListener("mouseup", async () => {
+      if (isPanning) {
+        isPanning = false;
+      }
+      if (dragPointId !== null) {
+        dragPointId = null;
+        await saveCurrentEdits();
+      }
+      if (drawingBox && boxStart && boxEnd) {
+        drawingBox = false;
+        const x1 = Math.min(boxStart.x, boxEnd.x);
+        const y1 = Math.min(boxStart.y, boxEnd.y);
+        const bw = Math.abs(boxEnd.x - boxStart.x);
+        const bh = Math.abs(boxEnd.y - boxStart.y);
+        boxStart = null;
+        boxEnd = null;
+        if (bw > 20 && bh > 20) {
+          manualBoxMode = false;
+          document.getElementById("btnManualBox").classList.remove("active-tool");
+          await predictCurrent([x1, y1, bw, bh]);
+        } else {
+          drawCanvas();
+        }
+      }
+    });
+
+    window.addEventListener("keydown", async e => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      if (e.key === "b" || e.key === "B") {
+        toggleManualBox();
+        return;
+      }
+      if (e.key === "ArrowLeft") { prevImage(); return; }
+      if (e.key === "ArrowRight") { nextImage(); return; }
+      if (hoverPointId === null) return;
+      const pred = getCurrentPred();
+      if (!pred) return;
+      const pt = pred.points.find(p => p.point_id === hoverPointId);
+      if (!pt) return;
+      const k = e.key.toLowerCase();
+      if (k === "v") { pt.occluded = 0; pt.outside = 0; }
+      else if (k === "o") { pt.occluded = 1; pt.outside = 0; }
+      else if (k === "x") { pt.occluded = 0; pt.outside = 1; }
+      else return;
+      drawCanvas();
+      await saveCurrentEdits();
+    });
+
+    async function loadFolder() {
+      const folder = document.getElementById("folderInput").value;
+      if (!folder.trim()) return;
+      setStatus("Đang quét thư mục ảnh...");
+      const res = await fetch("/api/load-folder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder_path: folder }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus("Lỗi: " + (data.detail || "Không nạp được thư mục"), "#fca5a5");
+        return;
+      }
+      setStatus(`Đã nạp ${data.count} ảnh từ thư mục.`, "#86efac");
+      await refreshImageList(false);
+    }
+
+    async function uploadFiles() {
+      const files = document.getElementById("uploadInput").files;
+      if (!files || files.length === 0) return;
+      const fd = new FormData();
+      for (const f of files) fd.append("files", f);
+      setStatus(`Đang tải lên ${files.length} ảnh...`);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus("Lỗi upload: " + (data.detail || ""), "#fca5a5");
+        return;
+      }
+      setStatus(`Đã tải lên ${data.count} ảnh.`, "#86efac");
+      await refreshImageList(false);
+    }
+
+    async function pasteImageFile(file) {
+      const fd = new FormData();
+      const fname = file.name && file.name !== "image.png" ? file.name : "clipboard.png";
+      fd.append("file", file, fname);
+      setStatus("Đang nhận ảnh chụp màn hình...");
+      const res = await fetch("/api/paste-image", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus("Lỗi dán ảnh: " + (data.detail || ""), "#fca5a5");
+        return;
+      }
+      IMAGES = data.images || [];
+      await selectImage(data.index);
+      setStatus(`Đã dán ${data.image.image_name} (${data.count} ảnh trong danh sách).`, "#86efac");
+      if (document.getElementById("chkAutoPredictPaste").checked) {
+        await predictCurrent();
+      }
+    }
+
+    async function pasteFromClipboardButton() {
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        setStatus("Trình duyệt không hỗ trợ đọc Clipboard qua nút — hãy nhấn Ctrl+V trực tiếp trên trang!", "#fde68a");
+        return;
+      }
+      try {
+        const items = await navigator.clipboard.read();
+        let found = false;
+        for (const item of items) {
+          const imgType = item.types.find(t => t.startsWith("image/"));
+          if (imgType) {
+            const blob = await item.getType(imgType);
+            const ext = imgType.split("/")[1] || "png";
+            const file = new File([blob], `clipboard.${ext}`, { type: imgType });
+            await pasteImageFile(file);
+            found = true;
+          }
+        }
+        if (!found) {
+          setStatus("Clipboard hiện không có ảnh — hãy chụp màn hình rồi nhấn Ctrl+V!", "#fde68a");
+        }
+      } catch (err) {
+        setStatus("Trình duyệt chặn đọc Clipboard bằng nút — bạn chỉ cần nhấn Ctrl+V trực tiếp trên trang!", "#fde68a");
+      }
+    }
+
+    async function clearAllImages() {
+      const res = await fetch("/api/clear-images", { method: "POST" });
+      if (!res.ok) return;
+      IMAGES = [];
+      CURRENT_IDX = -1;
+      CURRENT_IMG_EL = null;
+      renderImageList();
+      updateRightPanel();
+      drawCanvas();
+      setStatus("Đã xóa toàn bộ danh sách ảnh trong phiên.", "#93c5fd");
+    }
+
+    function getPredictConfig() {
+      return {
+        rotate_mode: document.getElementById("rotateMode").value,
+        driver_side: document.getElementById("driverSide").value,
+        yaw_occluded: parseFloat(document.getElementById("yawOcc").value),
+        yaw_outside: parseFloat(document.getElementById("yawOut").value),
+        weights_name: document.getElementById("weightsSelect").value || null,
+        detector_mode: document.getElementById("detectorSelect").value || null,
+        ensemble_mode: document.getElementById("ensembleSelect").value || null,
+        headpose_mode: document.getElementById("headposeSelect").value || null,
+        use_tta: document.getElementById("chkTTA").checked,
+        use_two_pass: document.getElementById("chkTwoPass").checked,
+      };
+    }
+
+    async function predictCurrent(manualBbox = null) {
+      if (CURRENT_IDX < 0) return;
+      const item = IMAGES[CURRENT_IDX];
+      const cfg = getPredictConfig();
+      setStatus(`Đang chạy ${cfg.detector_mode} + ${cfg.ensemble_mode} (${cfg.weights_name || "mặc định"}) cho ${item.image_name}...`);
+      const res = await fetch("/api/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image_id: item.image_id,
+          manual_bbox: manualBbox,
+          ...cfg,
+        }),
+      });
+      const updated = await res.json();
+      if (!res.ok) {
+        setStatus("Lỗi predict: " + (updated.detail || ""), "#fca5a5");
+        return;
+      }
+      IMAGES[CURRENT_IDX] = updated;
+      renderImageList();
+      updateRightPanel();
+      drawCanvas();
+      setStatus(`Hoàn tất pre-label: ${item.image_name}`, "#86efac");
+    }
+
+    async function predictBatch() {
+      if (!IMAGES.length) return;
+      const cfg = getPredictConfig();
+      setStatus(`Đang chạy batch Mức 2 (${cfg.detector_mode} + ${cfg.ensemble_mode}) cho ${IMAGES.length} ảnh...`);
+      document.getElementById("btnRunBatch").disabled = true;
+      try {
+        const res = await fetch("/api/predict-batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cfg),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setStatus("Lỗi batch: " + (data.detail || ""), "#fca5a5");
+          return;
+        }
+        IMAGES = data.images;
+        renderImageList();
+        updateRightPanel();
+        drawCanvas();
+        setStatus(`Hoàn tất batch: Detect được ${data.detected}/${data.total} ảnh.`, "#86efac");
+      } finally {
+        document.getElementById("btnRunBatch").disabled = false;
+      }
+    }
+
+    async function exportCVAT() {
+      const fd = new FormData();
+      const outDir = document.getElementById("exportDirInput").value;
+      if (outDir.trim()) fd.append("output_dir", outDir.trim());
+      const tplFiles = document.getElementById("templateXmlInput").files;
+      if (tplFiles && tplFiles.length > 0) fd.append("template_xml", tplFiles[0]);
+
+      setStatus("Đang tạo file annotations.xml (CVAT 1.1)...");
+      const res = await fetch("/api/export-cvat", { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setStatus("Lỗi xuất XML: " + (err.detail || res.statusText), "#fca5a5");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "annotations.xml";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      const savedDir = res.headers.get("X-Export-Dir");
+      setStatus(`Đã xuất annotations.xml${savedDir ? " (và lưu tại " + savedDir + ")" : ""}!`, "#86efac");
+    }
+
+    function prevImage() {
+      if (CURRENT_IDX > 0) selectImage(CURRENT_IDX - 1);
+    }
+    function nextImage() {
+      if (CURRENT_IDX < IMAGES.length - 1) selectImage(CURRENT_IDX + 1);
+    }
+
+    init();
+  </script>
+</body>
+</html>

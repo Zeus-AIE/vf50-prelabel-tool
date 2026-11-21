@@ -1,0 +1,14 @@
+{
+  "status": "completed",
+  "epoch": 6,
+  "total_epochs": 6,
+  "best_ir_vf50_nme": 2.8804,
+  "summary": {
+    "clean_baseline_vf50": 3.2136,
+    "clean_finetuned_vf50": 3.2723,
+    "ir_baseline_vf50": 4.1836,
+    "ir_finetuned_vf50": 3.9599
+  },
+  "out_weights": "D:\\VinUni\\vf50-prelabel-tool\\models\\spiga_wflw_ir_vf50.pt",
+  "report_path": "D:\\VinUni\\vf50-prelabel-tool\\models\\ir_finetune_report.json"
+}

@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Datasets and Cache
+datasets/
+.ui_cache/
+scratch/
+*.part
+
+# Large Model Checkpoints (>100MB, downloaded via scripts/download_all_models.py)
+models/*.pt
+models/*.pth
+models/*.onnx
+models/*.tar.gz
+models/*.zip
+
+# Whitelist small essential metadata and shapes
+!models/tufa_shape_98.npz
+!models/ir_finetune_report.json
+!models/level2_benchmark.json
+!models/train_progress.json
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini

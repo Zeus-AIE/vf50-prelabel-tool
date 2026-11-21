@@ -1,0 +1,56 @@
+{
+  "num_images": 500,
+  "clean_vf50_nme": {
+    "spiga_ir_1pass": 3.8034,
+    "spiga_ir_tta": 3.6943,
+    "tufa_tta": 3.5385,
+    "ens_w50_50": 3.4329,
+    "ens_w60_40": 3.4576,
+    "ens_w65_35": 3.4753
+  },
+  "ir_vf50_nme": {
+    "spiga_ir_1pass": 5.1471,
+    "spiga_ir_tta": 5.1308,
+    "tufa_tta": 5.4756,
+    "ens_w50_50": 4.9275,
+    "ens_w60_40": 4.9239,
+    "ens_w65_35": 4.9306
+  },
+  "ir_subsets_vf50_nme": {
+    "pose": {
+      "spiga_ir_1pass": 8.441,
+      "spiga_ir_tta": 8.7089,
+      "tufa_tta": 9.0435,
+      "ens_w50_50": 8.2139,
+      "ens_w60_40": 8.2417,
+      "ens_w65_35": 8.2697
+    },
+    "blur": {
+      "spiga_ir_1pass": 5.1034,
+      "spiga_ir_tta": 5.0121,
+      "tufa_tta": 5.7227,
+      "ens_w50_50": 4.8302,
+      "ens_w60_40": 4.8196,
+      "ens_w65_35": 4.823
+    },
+    "occlusion": {
+      "spiga_ir_1pass": 5.657,
+      "spiga_ir_tta": 5.6708,
+      "tufa_tta": 6.2622,
+      "ens_w50_50": 5.4066,
+      "ens_w60_40": 5.41,
+      "ens_w65_35": 5.4212
+    },
+    "illumination": {
+      "spiga_ir_1pass": 4.8988,
+      "spiga_ir_tta": 4.8506,
+      "tufa_tta": 5.4163,
+      "ens_w50_50": 4.6812,
+      "ens_w60_40": 4.673,
+      "ens_w65_35": 4.6764
+    }
+  },
+  "full_level2_2pass_100ir_vf50_nme": 4.0877,
+  "full_level2_ms_per_img": 408.3,
+  "peak_vram_mib": 725.9
+}
