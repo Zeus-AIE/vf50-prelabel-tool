@@ -571,6 +571,14 @@
           </div>
         </div>
         <div class="row" style="margin-bottom:8px;">
+          <label style="display:flex; align-items:center; gap:5px; margin:0; cursor:pointer; color:var(--text);" title="Xoay phẳng vùng mặt theo trục mắt (từ SCRFD/SPIGA) trước khi suy luận landmark & pose">
+            <input id="chkRollAlign" type="checkbox" checked onchange="syncPresetHighlight()" /> Xoay phẳng mắt (Roll-Align)
+          </label>
+          <label style="display:flex; align-items:center; gap:5px; margin:0; cursor:pointer; color:var(--text);" title="Chỉ nâng sáng IR dịu hoặc nén cháy sáng khi vùng mặt thực sự thiếu sáng/cháy sáng">
+            <input id="chkPhotoPreprocess" type="checkbox" checked onchange="syncPresetHighlight()" /> Tiền xử lý sáng tự động
+          </label>
+        </div>
+        <div class="row" style="margin-bottom:8px;">
           <div>
             <label>Xoay ảnh trước detect</label>
             <select id="rotateMode">
@@ -895,6 +903,8 @@
       document.getElementById("headposeSelect").value = c.headpose_mode;
       document.getElementById("chkTTA").checked = !!c.use_tta;
       document.getElementById("chkTwoPass").checked = !!c.use_two_pass;
+      document.getElementById("chkRollAlign").checked = c.use_roll_align !== undefined ? !!c.use_roll_align : true;
+      document.getElementById("chkPhotoPreprocess").checked = c.use_photo_preprocess !== undefined ? !!c.use_photo_preprocess : true;
       syncPresetHighlight();
     }
 
@@ -906,10 +916,14 @@
       const curH = document.getElementById("headposeSelect").value;
       const curTTA = document.getElementById("chkTTA").checked;
       const curTP = document.getElementById("chkTwoPass").checked;
+      const curRA = document.getElementById("chkRollAlign").checked;
+      const curPP = document.getElementById("chkPhotoPreprocess").checked;
 
       let matched = null;
       for (const p of SCHEMA.level_presets) {
         const c = p.config;
+        const pRA = c.use_roll_align !== undefined ? !!c.use_roll_align : true;
+        const pPP = c.use_photo_preprocess !== undefined ? !!c.use_photo_preprocess : true;
         if (
           p.available &&
           curW === c.weights_name &&
@@ -917,7 +931,9 @@
           curE === c.ensemble_mode &&
           curH === c.headpose_mode &&
           curTTA === !!c.use_tta &&
-          curTP === !!c.use_two_pass
+          curTP === !!c.use_two_pass &&
+          curRA === pRA &&
+          curPP === pPP
         ) {
           matched = p;
           break;
@@ -1502,7 +1518,8 @@
       const detTag = (pred.detector_used || "yunet").toUpperCase();
       const engTag = (pred.engine_used || "spiga_only").toUpperCase();
       const hpTag = (pred.headpose_used || "spiga").toUpperCase();
-      stackEl.textContent = `${detTag} + ${engTag} + ${hpTag}`;
+      const ppTag = pred.preprocess_applied && pred.preprocess_applied !== "none" ? pred.preprocess_applied : "";
+      stackEl.innerHTML = `${detTag} + ${engTag} + ${hpTag}` + (ppTag ? `<div class="hint" style="margin-top:2px; color:#93c5fd;">Pre: ${ppTag}</div>` : "");
 
       if (SCHEMA) {
         skelEl.innerHTML = "";
@@ -1887,6 +1904,8 @@
         headpose_mode: document.getElementById("headposeSelect").value || null,
         use_tta: document.getElementById("chkTTA").checked,
         use_two_pass: document.getElementById("chkTwoPass").checked,
+        use_roll_align: document.getElementById("chkRollAlign").checked,
+        use_photo_preprocess: document.getElementById("chkPhotoPreprocess").checked,
       };
     }
 

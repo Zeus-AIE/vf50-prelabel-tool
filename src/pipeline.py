@@ -137,6 +137,8 @@ def get_level_presets(models_dir: str) -> Dict[str, Any]:
                 "headpose_mode": "spiga",
                 "use_tta": False,
                 "use_two_pass": False,
+                "use_roll_align": True,
+                "use_photo_preprocess": False,
             },
         },
         {
@@ -152,6 +154,8 @@ def get_level_presets(models_dir: str) -> Dict[str, Any]:
                 "headpose_mode": "6drepnet",
                 "use_tta": True,
                 "use_two_pass": True,
+                "use_roll_align": True,
+                "use_photo_preprocess": True,
             },
         },
         {
@@ -167,6 +171,8 @@ def get_level_presets(models_dir: str) -> Dict[str, Any]:
                 "headpose_mode": "6drepnet",
                 "use_tta": True,
                 "use_two_pass": True,
+                "use_roll_align": True,
+                "use_photo_preprocess": True,
             },
         },
     ]
@@ -188,12 +194,16 @@ class VF50Pipeline:
         headpose_mode: Optional[str] = None,
         use_tta: bool = True,
         use_two_pass: bool = True,
+        use_roll_align: bool = True,
+        use_photo_preprocess: bool = True,
     ) -> None:
         self.models_dir = models_dir
         self.device = device
         self.det_score_threshold = det_score_threshold
         self.use_tta = use_tta
         self.use_two_pass = use_two_pass
+        self.use_roll_align = use_roll_align
+        self.use_photo_preprocess = use_photo_preprocess
 
         caps = get_level2_capabilities(models_dir)
         self.default_detector_mode = detector_mode or caps["default_detector"]
@@ -363,6 +373,8 @@ class VF50Pipeline:
         headpose_mode: Optional[str] = None,
         use_tta: Optional[bool] = None,
         use_two_pass: Optional[bool] = None,
+        use_roll_align: Optional[bool] = None,
+        use_photo_preprocess: Optional[bool] = None,
     ) -> ImagePrediction:
         """Run full pre-labeling pipeline on a single image."""
         orig_img = imread_unicode(image_path)
@@ -377,6 +389,10 @@ class VF50Pipeline:
         hp_mode = headpose_mode or self.default_headpose_mode
         run_tta = self.use_tta if use_tta is None else bool(use_tta)
         run_two_pass = self.use_two_pass if use_two_pass is None else bool(use_two_pass)
+        run_roll_align = self.use_roll_align if use_roll_align is None else bool(use_roll_align)
+        run_photo_preprocess = (
+            self.use_photo_preprocess if use_photo_preprocess is None else bool(use_photo_preprocess)
+        )
 
         if ens_mode not in VALID_ENSEMBLES:
             raise ValueError(f"Unsupported ensemble_mode: {ens_mode}")
@@ -391,6 +407,7 @@ class VF50Pipeline:
         if hp_mode == "6drepnet":
             self._get_headpose()
 
+        det_landmarks5: Optional[List[List[float]]] = None
         if manual_bbox is not None:
             angle_used = "0" if rotate_mode == "auto" else rotate_mode
             rot_img = rotate_image(orig_img, angle_used)
@@ -433,6 +450,7 @@ class VF50Pipeline:
                 bbox_rot = det.bbox
                 face_score = det.score
                 used_clahe = det.used_clahe
+                det_landmarks5 = det.landmarks5
             else:
                 best_rank = None
                 best_cand = None
@@ -448,6 +466,7 @@ class VF50Pipeline:
                 bbox_rot = det.bbox
                 face_score = det.score
                 used_clahe = det.used_clahe
+                det_landmarks5 = det.landmarks5
         else:
             angle_used, rot_img, det, multi_face = detector.detect_with_rotation(
                 orig_img, rotate_mode=rotate_mode, driver_side=driver_side
@@ -459,6 +478,7 @@ class VF50Pipeline:
             bbox_rot = det.bbox
             face_score = det.score
             used_clahe = det.used_clahe
+            det_landmarks5 = det.landmarks5
 
         rot_h, rot_w = rot_img.shape[:2]
         lm_pred = self.ensemble.predict(
@@ -468,6 +488,9 @@ class VF50Pipeline:
             use_two_pass=run_two_pass,
             use_ensemble=(ens_mode == "spiga_tufa"),
             use_6drepnet=(hp_mode == "6drepnet"),
+            landmarks5=det_landmarks5,
+            use_roll_align=run_roll_align,
+            use_photo_preprocess=run_photo_preprocess,
         )
 
         rule_out = apply_vf50_rules(
@@ -520,6 +543,7 @@ class VF50Pipeline:
             headpose_used=lm_pred.headpose_source,
             mean_confidence=mean_conf,
             max_uncertainty_px=max_unc,
+            preprocess_applied=lm_pred.preprocess_applied,
         )
 
     def run_batch(
@@ -538,6 +562,8 @@ class VF50Pipeline:
         headpose_mode: Optional[str] = None,
         use_tta: Optional[bool] = None,
         use_two_pass: Optional[bool] = None,
+        use_roll_align: Optional[bool] = None,
+        use_photo_preprocess: Optional[bool] = None,
     ) -> List[ImagePrediction]:
         """Run pre-labeling across a file or folder and write XML, JSON, CSV, and optional previews."""
         images = collect_images(input_path)
@@ -564,6 +590,8 @@ class VF50Pipeline:
                 headpose_mode=headpose_mode,
                 use_tta=use_tta,
                 use_two_pass=use_two_pass,
+                use_roll_align=use_roll_align,
+                use_photo_preprocess=use_photo_preprocess,
             )
             predictions.append(pred)
 

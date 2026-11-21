@@ -104,6 +104,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Tat 2-Pass coarse-to-fine bbox refinement",
     )
+    p.add_argument(
+        "--no-roll-align",
+        action="store_true",
+        help="Tat Roll-Aligned Face Warping (xoay phang truc mat truoc khi chay landmark)",
+    )
+    p.add_argument(
+        "--no-photo-preprocess",
+        action="store_true",
+        help="Tat Conditional Photometric Guard (nang sang IR / nen chay sang tu dong)",
+    )
     return p
 
 
@@ -117,6 +127,8 @@ def main() -> None:
     headpose_mode = "6drepnet"
     use_tta = True
     use_two_pass = True
+    use_roll_align = True
+    use_photo_preprocess = True
 
     if args.level is not None:
         presets = get_level_presets(args.models_dir)["level_presets"]
@@ -128,6 +140,8 @@ def main() -> None:
         headpose_mode = cfg["headpose_mode"]
         use_tta = bool(cfg["use_tta"])
         use_two_pass = bool(cfg["use_two_pass"])
+        use_roll_align = bool(cfg.get("use_roll_align", True))
+        use_photo_preprocess = bool(cfg.get("use_photo_preprocess", True))
 
     if args.detector is not None:
         detector_mode = args.detector
@@ -139,6 +153,10 @@ def main() -> None:
         use_tta = False
     if args.no_two_pass:
         use_two_pass = False
+    if args.no_roll_align:
+        use_roll_align = False
+    if args.no_photo_preprocess:
+        use_photo_preprocess = False
 
     print(f"[VF-50] Dang khoi tao model tu {args.models_dir} (device={args.device})...")
     pipeline = VF50Pipeline(
@@ -150,11 +168,14 @@ def main() -> None:
         headpose_mode=headpose_mode,
         use_tta=use_tta,
         use_two_pass=use_two_pass,
+        use_roll_align=use_roll_align,
+        use_photo_preprocess=use_photo_preprocess,
     )
     print(
         f"[VF-50] Stack: weights={pipeline.weights_name} | detector={pipeline.default_detector_mode} | "
         f"ensemble={pipeline.default_ensemble_mode} | headpose={pipeline.default_headpose_mode} | "
-        f"TTA={pipeline.use_tta} | 2-Pass={pipeline.use_two_pass}"
+        f"TTA={pipeline.use_tta} | 2-Pass={pipeline.use_two_pass} | "
+        f"RollAlign={pipeline.use_roll_align} | PhotoGuard={pipeline.use_photo_preprocess}"
     )
 
     def _on_progress(idx: int, total: int, name: str) -> None:

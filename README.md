@@ -41,6 +41,9 @@ Công cụ được thiết kế đặc thù để giải quyết triệt để 
 4. **Kiểm tra chất lượng & Xuất dữ liệu:**
    - Xuất file `annotations.xml` chuẩn **CVAT for images 1.1**.
    - Xuất file báo cáo `qc_report.csv` cảnh báo các frame có góc nghiêng lớn, điểm mờ bất định (`LOW_CONFIDENCE_POINTS`) hoặc mất cân đối topology mí mắt/môi.
+5. **Tiền Xử Lý Thông Minh (`src/preprocessor.py`):**
+   - **Roll-Aligned Inference:** Tận dụng góc nghiêng mắt (`SCRFD-10G`/`YuNet` hoặc Pass 1 SPIGA) để xoay phẳng vùng mặt về `0°` trước khi chạy `SPIGA + TUFA + Flip TTA + 6DRepNet`, rồi ánh xạ ngược 50 điểm về ảnh gốc — giảm sâu sai số bất định trên ảnh đầu nghiêng/xoay ngang trong cabin.
+   - **Conditional Photometric Guard:** Chỉ tự động nâng sáng IR dịu (`dark_ir_lift`) hoặc nén vùng cháy sáng (`highlight_compress`) khi vùng mặt thực sự tối hoặc bị lóa, giữ nguyên hoàn toàn pixel của ảnh đủ sáng chuẩn.
 
 ---
 
@@ -66,6 +69,7 @@ vf50-prelabel-tool/
 │   ├── vf50_schema.py         # Định nghĩa 7 skeleton (0–49) & ánh xạ WFLW-98
 │   ├── detector.py            # YuNet face detector + CLAHE IR enhancement
 │   ├── scrfd_detector.py      # SCRFD-10G ONNX detector đa tỉ lệ
+│   ├── preprocessor.py        # Xoay phẳng theo trục mắt & cân bằng sáng có điều kiện
 │   ├── landmark_engine.py     # SPIGA + Ensemble TUFA + Flip TTA + Uncertainty
 │   ├── tufa_engine.py         # TUFA DINO Transformer refiner
 │   ├── headpose_6drepnet.py   # 6DRepNet 3D pose estimator (Yaw/Pitch/Roll)

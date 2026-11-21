@@ -120,6 +120,8 @@ class PredictRequest(BaseModel):
     headpose_mode: Optional[str] = None
     use_tta: Optional[bool] = None
     use_two_pass: Optional[bool] = None
+    use_roll_align: Optional[bool] = None
+    use_photo_preprocess: Optional[bool] = None
 
 
 class PredictBatchRequest(BaseModel):
@@ -133,6 +135,8 @@ class PredictBatchRequest(BaseModel):
     headpose_mode: Optional[str] = None
     use_tta: Optional[bool] = None
     use_two_pass: Optional[bool] = None
+    use_roll_align: Optional[bool] = None
+    use_photo_preprocess: Optional[bool] = None
 
 
 class PointUpdateItem(BaseModel):
@@ -372,6 +376,8 @@ def predict_single(req: PredictRequest) -> Dict[str, Any]:
         headpose_mode=req.headpose_mode,
         use_tta=req.use_tta,
         use_two_pass=req.use_two_pass,
+        use_roll_align=req.use_roll_align,
+        use_photo_preprocess=req.use_photo_preprocess,
     )
     item.prediction = pred
     return _serialize_session_item(item)
@@ -396,6 +402,8 @@ def predict_batch(req: PredictBatchRequest) -> Dict[str, Any]:
             headpose_mode=req.headpose_mode,
             use_tta=req.use_tta,
             use_two_pass=req.use_two_pass,
+            use_roll_align=req.use_roll_align,
+            use_photo_preprocess=req.use_photo_preprocess,
         )
     detected = sum(1 for it in SESSION.images if it.prediction and it.prediction.detected)
     return {

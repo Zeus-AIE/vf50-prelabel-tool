@@ -18,6 +18,13 @@ import torch
 from spiga.inference.config import ModelConfig
 from spiga.inference.framework import SPIGAFramework
 
+from .preprocessor import (
+    conditional_photometric_enhance,
+    estimate_roll_from_landmarks5,
+    estimate_roll_from_wflw98,
+    unwarp_points,
+    warp_face_upright,
+)
 from .vf50_schema import VF50_TO_WFLW98, flip_wflw98_points
 
 if TYPE_CHECKING:
@@ -44,6 +51,7 @@ class LandmarkPrediction:
     refined_bbox: Optional[List[float]] = None
     headpose_source: str = "spiga"
     ensemble_used: str = "spiga_only"
+    preprocess_applied: str = "none"
 
 
 class VF50Engine:
@@ -186,23 +194,58 @@ class EnsembleVF50Engine:
         use_two_pass: bool = True,
         use_ensemble: bool = True,
         use_6drepnet: bool = True,
+        landmarks5: Optional[Sequence[Sequence[float]]] = None,
+        use_roll_align: bool = True,
+        use_photo_preprocess: bool = True,
     ) -> LandmarkPrediction:
         img_h, img_w = image.shape[:2]
         orig_bbox = [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])]
+        tags: List[str] = []
+
+        # 1. Conditional Photometric Guard (acts only on very dark or blown-out faces)
+        work_img = image
+        if use_photo_preprocess:
+            work_img, photo_used, photo_tag = conditional_photometric_enhance(image, orig_bbox)
+            if photo_used:
+                tags.append(photo_tag)
+
+        # 2. Roll-Aligned Face Warping (de-rotates in-plane roll before landmark & headpose models)
+        align_roll_deg = 0.0
+        lms_p1_raw: Optional[np.ndarray] = None
+        if use_roll_align:
+            if landmarks5 and len(landmarks5) >= 2:
+                align_roll_deg = estimate_roll_from_landmarks5(landmarks5)
+            else:
+                lms_p1_raw, _, _, _, _ = self.spiga_engine.predict_wflw98_tta(
+                    work_img, orig_bbox, use_flip_tta=False
+                )
+                align_roll_deg = estimate_roll_from_wflw98(lms_p1_raw)
+
+        m_inv: Optional[np.ndarray] = None
+        if use_roll_align and abs(align_roll_deg) >= 12.0:
+            proc_img, proc_orig_bbox, m_inv = warp_face_upright(work_img, orig_bbox, align_roll_deg)
+            proc_h, proc_w = proc_img.shape[:2]
+            tags.append(f"roll({align_roll_deg:+.0f}°)")
+        else:
+            proc_img, proc_orig_bbox = work_img, orig_bbox
+            proc_h, proc_w = img_h, img_w
 
         refined_bbox: Optional[List[float]] = None
-        work_bbox = orig_bbox
+        work_bbox = proc_orig_bbox
         if use_two_pass:
-            lms_p1, _, _, _, _ = self.spiga_engine.predict_wflw98_tta(
-                image, orig_bbox, use_flip_tta=False
-            )
-            cand_bbox = self._compute_tight_bbox(lms_p1, orig_bbox, img_w, img_h)
+            if lms_p1_raw is not None and m_inv is None:
+                lms_p1 = lms_p1_raw
+            else:
+                lms_p1, _, _, _, _ = self.spiga_engine.predict_wflw98_tta(
+                    proc_img, proc_orig_bbox, use_flip_tta=False
+                )
+            cand_bbox = self._compute_tight_bbox(lms_p1, proc_orig_bbox, proc_w, proc_h)
             if cand_bbox is not None:
                 refined_bbox = cand_bbox
                 work_bbox = cand_bbox
 
         lms_spiga, flip_spiga, sp_yaw, sp_pitch, sp_roll = (
-            self.spiga_engine.predict_wflw98_tta(image, work_bbox, use_flip_tta=use_tta)
+            self.spiga_engine.predict_wflw98_tta(proc_img, work_bbox, use_flip_tta=use_tta)
         )
         iod = max(
             float(np.linalg.norm(lms_spiga[60] - lms_spiga[72])),
@@ -213,7 +256,7 @@ class EnsembleVF50Engine:
         disagree_50: np.ndarray
         if use_ensemble and self.tufa_engine is not None:
             lms_tufa, flip_tufa = self.tufa_engine.predict_wflw98(
-                image, work_bbox, use_flip_tta=use_tta
+                proc_img, work_bbox, use_flip_tta=use_tta
             )
             disagree_98 = np.linalg.norm(lms_spiga - lms_tufa, axis=1)
             disagree_50 = disagree_98[_VF50_INDEX_ARRAY]
@@ -235,21 +278,22 @@ class EnsembleVF50Engine:
         conf_50 = np.clip(np.exp(-(u_px / iod) / 0.08), 0.0, 1.0)
 
         if use_6drepnet and self.headpose_engine is not None:
-            eye_l_mid = 0.5 * (lms_98[60] + lms_98[64])
-            eye_r_mid = 0.5 * (lms_98[68] + lms_98[72])
-            v_eye = eye_r_mid - eye_l_mid
-            eye_dist = float(np.linalg.norm(v_eye))
-            face_roll_deg = float(np.degrees(np.arctan2(v_eye[1], v_eye[0]))) if eye_dist >= 8.0 else 0.0
+            res_roll = estimate_roll_from_wflw98(lms_98)
             yaw, pitch, roll = self.headpose_engine.predict(
-                image, work_bbox, use_flip_tta=use_tta, roll_deg=face_roll_deg
+                proc_img, work_bbox, use_flip_tta=use_tta, roll_deg=res_roll
             )
             headpose_source = "6drepnet"
         else:
             yaw, pitch, roll = sp_yaw, sp_pitch, sp_roll
             headpose_source = "spiga"
 
+        if m_inv is not None:
+            lms_98 = unwarp_points(lms_98, m_inv)
+            roll = ((roll + align_roll_deg + 180.0) % 360.0) - 180.0
+
         lms_50 = lms_98[_VF50_INDEX_ARRAY, :].copy()
-        sharpness = self.spiga_engine._compute_sharpness(image, work_bbox)
+        sharpness = self.spiga_engine._compute_sharpness(image, orig_bbox)
+        preprocess_applied = "+".join(tags) if tags else "none"
 
         return LandmarkPrediction(
             points_50=lms_50,
@@ -263,7 +307,8 @@ class EnsembleVF50Engine:
             uncertainty_px=u_px,
             confidence_50=conf_50,
             model_disagreement_px=disagree_50,
-            refined_bbox=refined_bbox,
+            refined_bbox=refined_bbox if m_inv is None else None,
             headpose_source=headpose_source,
             ensemble_used=ensemble_used,
+            preprocess_applied=preprocess_applied,
         )

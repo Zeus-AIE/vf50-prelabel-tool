@@ -36,6 +36,7 @@ class ImagePrediction:
     headpose_used: str = "spiga"
     mean_confidence: float = 1.0
     max_uncertainty_px: float = 0.0
+    preprocess_applied: str = "none"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -57,6 +58,7 @@ class ImagePrediction:
             "headpose_used": self.headpose_used,
             "mean_confidence": round(self.mean_confidence, 4),
             "max_uncertainty_px": round(self.max_uncertainty_px, 2),
+            "preprocess_applied": self.preprocess_applied,
             "points": [asdict(p) for p in self.points],
             "qc_flags": [asdict(f) for f in self.qc_flags],
         }
@@ -82,6 +84,7 @@ class ImagePrediction:
             headpose_used=data.get("headpose_used", "spiga"),
             mean_confidence=float(data.get("mean_confidence", 1.0)),
             max_uncertainty_px=float(data.get("max_uncertainty_px", 0.0)),
+            preprocess_applied=data.get("preprocess_applied", "none"),
             points=[PointAnnotation(**p) for p in data["points"]],
             qc_flags=[QCFlag(**f) for f in data.get("qc_flags", [])],
         )
