@@ -132,11 +132,14 @@ Trình duyệt sẽ tự động mở tại địa chỉ: **`http://127.0.0.1:78
 4. **Bấm Chạy Pre-label:**
    - Bấm **Chạy Ảnh Này** (đối với ảnh đang chọn) hoặc **Chạy Tất Cả** (đối với toàn bộ lô ảnh).
 5. **Tinh chỉnh điểm mốc trên Canvas:**
-   - Nhìn các điểm có **vòng tròn halo màu cam/đỏ** (đây là các điểm AI tự đánh giá độ bất định cao).
+   - Nhìn các điểm có **vòng hào quang màu tím nét đứt / vòng đôi hồng** (đây là điểm AI tự đánh giá độ bất định cao `Conf < 65%`, **không phải thuộc tính CVAT**).
+   - Quan sát **Chú giải thuộc tính (Legend Bar)** ở ngay phía trên Canvas; nhấp từng nút (`Visible ●`, `Occluded ◆`, `Outside ⊗`, `AI Nghi ngờ ◌`) để bật chế độ **Spotlight** làm mờ các điểm khác.
+   - Đổi chế độ tô màu ở góc phải toolbar (`Màu: Trạng thái` / `Màu: Skeleton` / `Màu: CVAT`).
+   - Di chuột lên từng điểm để xem **Floating Tooltip** chi tiết (hoặc hover từng **chip điểm** trong cột phải để chiếu tia định vị Cyan lên Canvas).
    - Nhấp giữ chuột trái và kéo để điều chỉnh điểm về đúng vị trí giải phẫu.
-   - Nhấp chuột phải vào điểm (hoặc hover và bấm phím `V`, `O`, `X`) để chuyển trạng thái.
-   - Nếu mặt quá mờ khiến AI không nhận diện được: Bấm phím **`B`** (hoặc nút *Vẽ khung mặt thủ công*), sau đó dùng chuột quét một hình chữ nhật quanh khuôn mặt.
-   - Khi người lái quay mặt góc nghiêng lớn, dùng các nút ở cột bên phải để đặt cả nhóm (`Mắt phải = Outside`, `Lông mày phải = Outside`...) chỉ với 1 click.
+   - Nhấp chuột phải vào điểm (hoặc hover và bấm phím `V`, `O`, `X`, hoặc click thẳng vào chip ID ở cột phải) để chuyển trạng thái.
+   - Nếu mặt quá mờ khiến AI không nhận diện được: Bấm phím **`B`** (hoặc nút *Vẽ khung mặt*), sau đó dùng chuột quét một hình chữ nhật quanh khuôn mặt.
+   - Khi người lái quay mặt góc nghiêng lớn hoặc vi phạm **ngưỡng Bảng 3.1**, dùng các nút ở cột phải để gán `Outside` cả nhóm chỉ với 1 click.
 6. **Xuất kết quả:**
    - Bấm **📥 Xuất CVAT XML** để tải file `annotations.xml`.
 
@@ -188,17 +191,35 @@ Nếu bạn đã tạo Task trên CVAT và có sẵn 7 skeleton cấu hình từ
 
 ---
 
+## 🎨 Cách Nhận Biết 4 Trường Hợp Thuộc Tính Điểm (Web UI & Preview)
+
+Công cụ sử dụng **4 kênh nhận diện độc lập** (Hình dạng + Màu sắc + Kiểu đường nối + Ký hiệu ID) để không bị nhầm trên ảnh IR đen trắng:
+
+| Trường hợp | Giá trị CVAT XML | Hình dạng điểm | Màu mặc định (`Trạng thái`) | Đường nối Skeleton | Nhãn ID | Ý nghĩa theo Guideline VF-50 |
+| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
+| **Visible** | `outside="0" occluded="0"` | **Tròn đặc `●`** | Xanh lục (`#22c55e`), viền đen | **Nét liền** | `14` (trắng) | Nhìn thấy trực tiếp; sai số cho phép `±5px`. |
+| **Occluded** | `outside="0" occluded="1"` | **Hình thoi `◆`** | Vàng hổ phách (`#f59e0b`), viền trắng + chấm tâm | **Nét đứt dài** `[6, 4]` | `35O` (vàng) | Bị che nhưng nội suy hợp lý; sai số `±20px`. |
+| **Outside** | `outside="1" occluded="0"` | **Vòng nét đứt + chéo `⊗`** | Đỏ hồng (`#f43f5e`) | **Nét chấm mảnh** `[2, 4]` | `22×` (hồng) | Ngoài khung hoặc che kín không còn căn cứ; tọa độ không dùng đến. |
+| **AI Nghi ngờ** | *(Chỉ báo AI, không ghi XML)* | **Vòng tím nét đứt / vòng đôi hồng `!`** | Tím điện (`#e879f9`) / Hồng rực (`#ff2a85`) | *(Giữ theo trạng thái điểm)* | *(Giữ theo trạng thái)* | `Conf < 65%` (hoặc `< 45%`): AI thiếu đồng thuận, cần người rà lại. |
+
+Ngoài ra trên Web UI còn có:
+- **Bộ lọc Spotlight (trên Legend Bar):** Bấm vào `Occluded ◆`, `Outside ⊗` hoặc `AI Nghi ngờ ◌` để giữ nguyên độ sáng cho nhóm cần kiểm tra và làm mờ các điểm khác.
+- **3 Chế độ màu điểm:** `Màu: Trạng thái` (Khuyên dùng), `Màu: Skeleton` (theo 7 nhóm), `Màu: CVAT` (50 màu gốc CVAT); các hình dạng `● / ◆ / ⊗` và nét đứt vẫn giữ nguyên ở cả 3 chế độ.
+- **Bảng 50 Chip Điểm (cột phải):** Liệt kê toàn bộ 50 ID chia theo 7 Skeleton; hover vào chip để chiếu tia chữ thập Cyan định vị trên ảnh, click chip để đổi vòng `Visible → Occluded → Outside`. Tự động cảnh báo khi số điểm nhìn thấy tụt dưới **ngưỡng Bảng 3.1**.
+
+---
+
 ## 📐 Danh Mục 50 Điểm Mốc VF-50 (7 Skeletons)
 
-| Nhóm Skeleton | Số Điểm | ID Điểm (0–49) | Đặc điểm giải phẫu chính |
-| :--- | :---: | :---: | :--- |
-| **`longmaytrai`** | 5 | `0 – 4` | Cung mày trái: 0 (đầu mày trong) $\rightarrow$ 4 (đuôi mày ngoài) |
-| **`longmayphai`** | 5 | `5 – 9` | Cung mày phải: 5 (đuôi mày ngoài) $\rightarrow$ 9 (đầu mày trong) |
-| **`songmui`** | 9 | `10 – 18` | Sống mũi (10–13), đỉnh chóp mũi (14), chân cánh mũi (15–18) |
-| **`mattrai`** | 8 | `19 – 26` | Mắt trái: 19 (khóe trong), 22 (đuôi ngoài), 20–21 (mí trên), 23–25 (mí dưới), 26 (tâm con ngươi) |
-| **`matphai`** | 8 | `27 – 34` | Mắt phải: 27 (đuôi ngoài), 30 (khóe trong), 28–29 (mí trên), 31–33 (mí dưới), 34 (tâm con ngươi) |
-| **`moingoai`** | 12 | `35 – 46` | Đường viền môi ngoài: khóe môi trái (35) $\rightarrow$ khóe môi phải (41) |
-| **`moitrong`** | 3 | `47 – 49` | Khe mở môi trong: 47 (mép môi trên trong), 48 (khe mở trung tâm), 49 (mép môi dưới trong) |
+| Nhóm Skeleton | Số Điểm | ID Điểm (0–49) | Kiểu Contour | Ngưỡng Bảng 3.1 | Đặc điểm giải phẫu chính (theo `src/vf50_schema.py`) |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **`longmaytrai`** | 5 | `0 – 4` | Hở | `≥ 3/5` | Cung mày trái (mép lông bờ trên): `0` (đuôi ngoài) $\rightarrow$ `4` (đầu trong) |
+| **`longmayphai`** | 5 | `5 – 9` | Hở | `≥ 3/5` | Cung mày phải (mép lông bờ trên): `5` (đầu trong) $\rightarrow$ `9` (đuôi ngoài) |
+| **`songmui`** | 4 | `10 – 13` | Hở | `≥ 2/4` | Sống mũi: `10` (đỉnh sống mũi ngang khóe mắt trong) $\rightarrow$ `13` (chân sống mũi trên lỗ mũi) |
+| **`mattrai`** | 8 | `14 – 21` | Kín | `≥ 4/8` | Mắt trái theo chiều KĐH: `14` (khóe ngoài), `15–17` (mí trên), `18` (khóe trong), `19–21` (mí dưới) |
+| **`matphai`** | 8 | `22 – 29` | Kín | `≥ 4/8` | Mắt phải theo chiều KĐH: `22` (khóe trong), `23–25` (mí trên), `26` (khóe ngoài), `27–29` (mí dưới) |
+| **`moingoai`** | 12 | `30 – 41` | Kín | `≥ 6/12` | Môi ngoài: `30` (khóe trái), `31–35` (bờ trên, `33` giữa), `36` (khóe phải), `37–41` (bờ dưới, `39` giữa) |
+| **`moitrong`** | 8 | `42 – 49` | Kín | `≥ 4/8` | Mép trong môi: `42` (khóe trong trái), `43–45` (mép trên, `44` giữa), `46` (khóe trong phải), `47–49` (mép dưới, `48` giữa) |
 
 ---
 
