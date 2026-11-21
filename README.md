@@ -18,7 +18,7 @@ Công cụ được thiết kế đặc thù để giải quyết triệt để 
 - **Tư thế người lái phức tạp:** Quay đầu góc lớn (Yaw > 35° đến > 55°), cúi/ngửa gắt (Pitch), nghiêng (Roll).
 - **Góc camera lắp lệch:** Hỗ trợ tự động phát hiện hoặc ép xoay góc ảnh `90° CW`, `90° CCW`, `180°`.
 - **Vật cản & Phụ kiện:** Người lái đeo kính râm, khẩu trang, bị vô lăng hoặc tay che khuất.
-- **Tự động suy luận trạng thái:** Tự gán thuộc tính `visible`, `occluded`, `outside` theo chuẩn **Bảng 3.1** trong Guideline.
+- **Tự động suy luận trạng thái (`Auto Visibility`):** Kết hợp hình học bất biến góc nghiêng + độ bất định 3-Model + **BiSeNet ResNet34 Face Parsing** (CPU ONNX, 0 MB VRAM) để tự gán `visible`, `occluded`, `outside` cho cả góc quay nghiêng lẫn vật cản (khẩu trang, kính râm/lóa IR, tóc che) theo chuẩn **Bảng 3.1** mà không cần chỉnh ngưỡng Yaw thủ công (vẫn hỗ trợ chuyển sang chế độ `Thủ công` nếu muốn).
 - **Xuất trực tiếp CVAT 1.1 XML:** Khớp 1-1 với 7 skeleton trên CVAT, import vào là làm việc được ngay.
 
 ---
@@ -27,8 +27,18 @@ Công cụ được thiết kế đặc thù để giải quyết triệt để 
 
 1. **Bộ chọn 3 Mức độ Sức mạnh (Level Selector):**
    - **Mức 1 (Nhanh cơ bản):** YuNet + SPIGA WFLW (~80ms/ảnh, siêu nhẹ cho CPU hoặc máy yếu).
-   - **Mức 2 (Mạnh nhất - Khuyên dùng):** SCRFD-10G + Ensemble SPIGA & TUFA (60/40) + 6DRepNet 3D Headpose + 2-Pass Refinement + Flip TTA + Đo độ bất định từng điểm (vòng tròn halo cam/đỏ cảnh báo điểm mốc nghi ngờ).
-   - **Mức 3 (Chuyên sâu IR):** SCRFD-10G + SPIGA đã được Fine-tune chuyên biệt trên bộ Synthetic IR Augmentation (giảm NME trên ảnh IR cabin).
+   - **Mức 2 (Mạnh nhất Pretrained):** SCRFD-10G + Ensemble 3 họ kiến trúc **SPIGA (Hourglass+GAT) + TUFA (DINO ViT, IJCV 2025) + STAR (StackedHG+CoordConv+AAM, CVPR 2023)** (tỉ lệ `40/30/30` kèm đồng thuận 3 chiều chống outlier) + 6DRepNet 3D Headpose + 2-Pass Refinement + Flip TTA.
+   - **Mức 3 ★ (Tối ưu Cabin IR — Mặc định):** Dùng **SPIGA-IR Fine-tuned** (`spiga_wflw_ir_vf50.pt`) kết hợp cùng **TUFA + STAR** + SCRFD-10G + 6DRepNet + Roll-Aligned Inference & Conditional Photometric Guard.
+
+### Benchmark WFLW-500 Phân Tầng (VF-50 NME %, RTX 3060 6GB)
+
+| Tổ hợp Landmark Engine | Clean NME | IR NME (Tổng) | IR Pose NME | IR Occlusion NME | E2E 2-Pass 100-IR | Tốc độ | Peak VRAM |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `SPIGA-IR + TTA` (đơn lẻ) | 3.694% | 5.131% | 8.709% | 5.671% | - | - | - |
+| `TUFA + TTA` (đơn lẻ) | 3.539% | 5.476% | 9.044% | 6.262% | - | - | - |
+| `STAR + TTA` (đơn lẻ) | 3.573% | 5.144% | 8.417% | 5.568% | - | - | - |
+| **Ensemble 2 Model** (`SPIGA-IR 60 + TUFA 40`) | 3.458% | 4.924% | 8.242% | 5.410% | 4.088% | 408.3 ms/ảnh | 725.9 MiB |
+| **Ensemble 3 Model ★** (`SPIGA-IR 40 + TUFA 30 + STAR 30`) | **3.399%** | **4.922%** | **8.111%** | **5.365%** | **3.963%** | 432.3 ms/ảnh | **789.5 MiB** |
 2. **Dán trực tiếp ảnh chụp màn hình (Clipboard Paste):**
    - Hỗ trợ nhấn `Ctrl + V` trực tiếp ở bất kỳ đâu trên giao diện web.
    - Nút **Dán từ Clipboard** tự động đọc ảnh chụp màn hình từ bộ nhớ tạm OS.
@@ -59,9 +69,12 @@ vf50-prelabel-tool/
 │   ├── scrfd_10g_bnkps.onnx
 │   ├── face_detection_yunet_2023mar.onnx
 │   ├── spiga_wflw.pt
+│   ├── spiga_wflw_ir_vf50.pt
 │   ├── 6DRepNet_300W_LP_AFLW2000.pth
 │   ├── tufa_face_prompt_base.pth
-│   └── tufa_shape_98.npz
+│   ├── tufa_shape_98.npz
+│   ├── star_wflw.pkl
+│   └── bisenet_resnet34.onnx
 ├── scripts/
 │   ├── download_all_models.py # Tải tự động và verify toàn bộ weights
 │   └── benchmark_level2.py    # Script benchmark đánh giá NME
@@ -70,17 +83,19 @@ vf50-prelabel-tool/
 │   ├── detector.py            # YuNet face detector + CLAHE IR enhancement
 │   ├── scrfd_detector.py      # SCRFD-10G ONNX detector đa tỉ lệ
 │   ├── preprocessor.py        # Xoay phẳng theo trục mắt & cân bằng sáng có điều kiện
-│   ├── landmark_engine.py     # SPIGA + Ensemble TUFA + Flip TTA + Uncertainty
+│   ├── face_parser.py         # BiSeNet ResNet34 CPU ONNX 19-class face parser
+│   ├── landmark_engine.py     # SPIGA + Ensemble TUFA/STAR + Flip TTA + Uncertainty
 │   ├── tufa_engine.py         # TUFA DINO Transformer refiner
+│   ├── star_engine.py         # STAR StackedHGNetV1 + CoordConv + AAM refiner
 │   ├── headpose_6drepnet.py   # 6DRepNet 3D pose estimator (Yaw/Pitch/Roll)
-│   ├── vf50_rules.py          # Topology nắn mí/môi & luật Bảng 3.1
+│   ├── vf50_rules.py          # Topology nắn mí/môi, Auto Visibility & luật Bảng 3.1
 │   ├── cvat_exporter.py       # Xuất CVAT XML 1.1, JSON, QC Report CSV
 │   ├── visualizer.py          # Render ảnh preview kèm ID & vòng bất định
 │   ├── pipeline.py            # Điều phối logic 3 Mức độ
 │   └── web_app.py             # FastAPI backend phục vụ Web UI
 ├── static/
 │   └── index.html             # Giao diện Web Canvas tương tác đầy đủ
-└── vendor/                    # Mã nguồn inference sạch cho SPIGA, TUFA, 6DRepNet
+└── vendor/                    # Mã nguồn inference sạch cho SPIGA, TUFA, STAR, 6DRepNet
 ```
 
 ---
@@ -109,7 +124,7 @@ Chỉ cần nhấp đúp file **`setup.bat`** (hoặc chạy từ terminal):
 1. Tạo môi trường ảo `.venv`.
 2. Kiểm tra GPU và cài PyTorch (CUDA 12.1 hoặc CPU tương ứng).
 3. Cài các thư viện từ `requirements.txt`.
-4. Tự động tải toàn bộ 6 model weights từ HuggingFace & Google Drive và verify tính toàn vẹn.
+4. Tự động tải toàn bộ 8 model weights từ HuggingFace, GitHub Release & Google Drive và verify tính toàn vẹn.
 
 ---
 
@@ -132,7 +147,7 @@ Trình duyệt sẽ tự động mở tại địa chỉ: **`http://127.0.0.1:78
 3. **Cấu hình bổ sung (nếu cần):**
    - *Góc xoay:* Để `Auto` (tự động phát hiện ảnh xoay) hoặc chọn `90 CW` / `90 CCW` / `180`.
    - *Vị trí lái:* Mặc định `Lớn nhất` (khuôn mặt chính).
-   - *Ngưỡng Yaw:* `35°` cho Occluded, `55°` cho Outside (theo đúng Guideline).
+   - *Chế độ gán Occluded / Outside:* Mặc định **`Tự động (Auto)`** (kết hợp hình học + độ bất định 3-Model + Face Parsing bắt cả góc nghiêng, khẩu trang, kính râm/lóa IR, tóc che). Có thể chuyển sang **`Thủ công`** để tự kéo 2 ngưỡng `Yaw` (`35° / 55°`).
 4. **Bấm Chạy Pre-label:**
    - Bấm **Chạy Ảnh Này** (đối với ảnh đang chọn) hoặc **Chạy Tất Cả** (đối với toàn bộ lô ảnh).
 5. **Tinh chỉnh điểm mốc trên Canvas:**
@@ -157,13 +172,13 @@ Nếu bạn cần xử lý tự động hàng nghìn ảnh mà không cần mở
 .\.venv\Scripts\python.exe cli.py `
   --input "D:\Dataset\Cabin_IR_Batch1" `
   --output "D:\Dataset\CVAT_Export" `
-  --level 2 `
+  --level 3 `
+  --visibility-mode auto `
   --rotate auto `
   --driver-side largest `
-  --yaw-occluded 35 `
-  --yaw-outside 55 `
   --save-previews
 ```
+*(Nếu muốn dùng ngưỡng `Yaw` cố định giống bản cũ: thêm `--visibility-mode manual --yaw-occluded 35 --yaw-outside 55`.)*
 
 ### Sử dụng file mẫu CVAT Template:
 Nếu bạn đã tạo Task trên CVAT và có sẵn 7 skeleton cấu hình từ trước, hãy export file XML rỗng từ CVAT ra và truyền vào cờ `--template-xml`:

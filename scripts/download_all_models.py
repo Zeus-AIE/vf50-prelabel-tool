@@ -6,7 +6,9 @@ Downloads and verifies all pretrained weights for Level 1, Level 2, and Level 3:
 3. SPIGA Base (spiga_wflw.pt) - Base 98-point facial landmark model
 4. 6DRepNet (6DRepNet_300W_LP_AFLW2000.pth) - Continuous 3D headpose estimation
 5. TUFA (tufa_face_prompt_base.pth & shape_98.npz) - Transformer-based landmark refiner
-6. SPIGA-IR Fine-tuned (spiga_wflw_ir_vf50.pt) - Level 3 IR-optimized weights
+6. STAR (star_wflw.pkl) - Stacked Hourglass + CoordConv + AAM landmark refiner (CVPR 2023)
+7. SPIGA-IR Fine-tuned (spiga_wflw_ir_vf50.pt) - Level 3 IR-optimized weights
+8. BiSeNet ResNet34 Face Parser (bisenet_resnet34.onnx) - Auto Occluded/Outside semantic segmentation
 """
 
 from __future__ import annotations
@@ -35,7 +37,7 @@ def _download_http(url: str, dst: Path) -> None:
         r.raise_for_status()
         total = int(r.headers.get("Content-Length", 0))
         ct = r.headers.get("Content-Type", "")
-        if "text/html" in ct.lower() and dst.suffix in {".pt", ".pth", ".onnx", ".npz"}:
+        if "text/html" in ct.lower() and dst.suffix in {".pt", ".pth", ".pkl", ".onnx", ".npz"}:
             raise RuntimeError(f"Unexpected HTML response from {url} (Content-Type={ct})")
         with open(tmp, "wb") as f, tqdm(
             total=total if total > 0 else None,
@@ -104,7 +106,7 @@ def download_all_models(repo_release_url: str = "") -> None:
     print("=" * 70)
 
     # 1. YuNet (Fast face detector, 232 KB)
-    print("\n[1/6] Checking YuNet Face Detector (Level 1 & fallback)...")
+    print("\n[1/8] Checking YuNet Face Detector (Level 1 & fallback)...")
     download_with_mirrors(
         [
             "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
@@ -115,7 +117,7 @@ def download_all_models(repo_release_url: str = "") -> None:
     )
 
     # 2. SCRFD-10G (SOTA IR face detector, 16.9 MB)
-    print("\n[2/6] Checking SCRFD-10G Detector (Level 2 & Level 3)...")
+    print("\n[2/8] Checking SCRFD-10G Detector (Level 2 & Level 3)...")
     download_with_mirrors(
         [
             "https://huggingface.co/DIAMONIK7777/antelopev2/resolve/main/scrfd_10g_bnkps.onnx",
@@ -126,7 +128,7 @@ def download_all_models(repo_release_url: str = "") -> None:
     )
 
     # 3. SPIGA Base WFLW (254.8 MB)
-    print("\n[3/6] Checking SPIGA Base Model (Level 1 & Level 2)...")
+    print("\n[3/8] Checking SPIGA Base Model (Level 1 & Level 2)...")
     download_with_mirrors(
         [
             "https://huggingface.co/aprados/spiga/resolve/main/spiga_wflw.pt?download=true",
@@ -137,7 +139,7 @@ def download_all_models(repo_release_url: str = "") -> None:
     )
 
     # 4. 6DRepNet Head Pose (157.3 MB)
-    print("\n[4/6] Checking 6DRepNet Head Pose Estimator (Level 2 & Level 3)...")
+    print("\n[4/8] Checking 6DRepNet Head Pose Estimator (Level 2 & Level 3)...")
     download_with_mirrors(
         [
             "https://huggingface.co/Cantina/head-pose-estimation/resolve/main/6DRepNet_300W_LP_AFLW2000.pth",
@@ -148,7 +150,7 @@ def download_all_models(repo_release_url: str = "") -> None:
     )
 
     # 5. TUFA Transformer Base & Shape (Level 2)
-    print("\n[5/6] Checking TUFA Landmark Refiner (Level 2 Ensemble)...")
+    print("\n[5/8] Checking TUFA Landmark Refiner (Level 2/3 Ensemble)...")
     download_with_mirrors(
         ["https://raw.githubusercontent.com/Jiahao-UTS/TUFA/main/Prompt/shape_98.npz"],
         MODELS_DIR / "tufa_shape_98.npz",
@@ -156,8 +158,12 @@ def download_all_models(repo_release_url: str = "") -> None:
     )
     download_gdrive("1rRAB3W74QK-J6W_EnjC7HhS-zjT9BuED", MODELS_DIR / "tufa_face_prompt_base.pth", min_bytes=100_000_000)
 
-    # 6. SPIGA-IR Fine-tuned Weights (Level 3 - VF-50 IR SOTA)
-    print("\n[6/6] Checking Fine-tuned SPIGA-IR Weights (Level 3)...")
+    # 6. STAR StackedHGNetV1 WFLW (CVPR 2023, 178 MB)
+    print("\n[6/8] Checking STAR StackedHG Landmark Refiner (Level 2/3 3-Model Ensemble)...")
+    download_gdrive("1aOx0wYEZUfBndYy_8IYszLPG_D2fhxrT", MODELS_DIR / "star_wflw.pkl", min_bytes=150_000_000)
+
+    # 7. SPIGA-IR Fine-tuned Weights (Level 3 - VF-50 IR SOTA)
+    print("\n[7/8] Checking Fine-tuned SPIGA-IR Weights (Level 3)...")
     ir_weights = MODELS_DIR / "spiga_wflw_ir_vf50.pt"
     if ir_weights.exists() and ir_weights.stat().st_size >= 200_000_000:
         print(f"  [OK] {ir_weights.name} already present ({ir_weights.stat().st_size / (1024**2):.2f} MB)")
@@ -169,6 +175,16 @@ def download_all_models(repo_release_url: str = "") -> None:
             "https://github.com/Zeus-AIE/vf50-prelabel-tool/releases/download/v1.0.0/spiga_wflw_ir_vf50.pt",
         ])
         download_with_mirrors(release_urls, ir_weights, min_bytes=200_000_000, optional=True)
+
+    # 8. BiSeNet ResNet34 Face Parsing (CelebAMask-HQ 19-class ONNX, 93.6 MB)
+    print("\n[8/8] Checking BiSeNet ResNet34 Face Parser (Auto Occluded/Outside)...")
+    download_with_mirrors(
+        [
+            "https://github.com/yakhyo/face-parsing/releases/download/weights/resnet34.onnx",
+        ],
+        MODELS_DIR / "bisenet_resnet34.onnx",
+        min_bytes=80_000_000,
+    )
 
     print("\n" + "=" * 70)
     print("VERIFYING MODEL INTEGRITY...")
@@ -189,6 +205,15 @@ def verify_models() -> None:
         sess_sc = ort.InferenceSession(str(scrfd), providers=["CPUExecutionProvider"])
         assert len(sess_sc.get_outputs()) == 9
         print(f"  [VERIFIED] SCRFD-10G detector: OK (9 multi-scale outputs)")
+
+    bisenet = MODELS_DIR / "bisenet_resnet34.onnx"
+    if bisenet.exists():
+        sess_bn = ort.InferenceSession(str(bisenet), providers=["CPUExecutionProvider"])
+        in_cfg = sess_bn.get_inputs()[0]
+        assert len(in_cfg.shape) == 4 and in_cfg.shape[2:] == [512, 512], f"Unexpected BiSeNet input shape: {in_cfg.shape}"
+        dummy_out = sess_bn.run(None, {in_cfg.name: np.zeros((1, 3, 512, 512), dtype=np.float32)})[0]
+        assert dummy_out.shape == (1, 19, 512, 512), f"Unexpected BiSeNet output shape: {dummy_out.shape}"
+        print(f"  [VERIFIED] BiSeNet ResNet34 Face Parser: OK (in={in_cfg.shape}, out={dummy_out.shape}, outputs={len(sess_bn.get_outputs())})")
 
     # Verify PyTorch checkpoints
     spiga_base = MODELS_DIR / "spiga_wflw.pt"
@@ -211,6 +236,13 @@ def verify_models() -> None:
         npz = np.load(str(shape))
         assert npz["offset"].shape == (98, 2)
         print(f"  [VERIFIED] TUFA shape_98: OK (offset shape: {npz['offset'].shape})")
+
+    star = MODELS_DIR / "star_wflw.pkl"
+    if star.exists():
+        ckpt_star = torch.load(str(star), map_location="cpu", weights_only=False)
+        sd_star = ckpt_star["net"] if isinstance(ckpt_star, dict) and "net" in ckpt_star else ckpt_star
+        assert isinstance(sd_star, dict) and len(sd_star) > 0
+        print(f"  [VERIFIED] STAR WFLW weights: OK ({len(sd_star)} keys)")
 
     ir_weights = MODELS_DIR / "spiga_wflw_ir_vf50.pt"
     if ir_weights.exists():

@@ -8,6 +8,7 @@ import time
 
 from src.detector import VALID_DETECTORS, VALID_DRIVER_SIDES, VALID_ROTATIONS
 from src.pipeline import VALID_ENSEMBLES, VALID_HEADPOSES, VF50Pipeline, get_level_presets
+from src.vf50_rules import VALID_VISIBILITY_MODES
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -32,16 +33,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Cach chon khuon mat nguoi lai khi co nhieu mat (largest, left, right, center)",
     )
     p.add_argument(
+        "--visibility-mode",
+        default="auto",
+        choices=VALID_VISIBILITY_MODES,
+        help="Che do gan Occluded/Outside: auto (Hinh hoc + 3-Model + Face Parsing) hoac manual (2 nguong Yaw). Mac dinh: auto",
+    )
+    p.add_argument(
         "--yaw-occluded",
         type=float,
         default=35.0,
-        help="Nguong |yaw| (do) de bat dau gan Occluded cho nua mat phia xa",
+        help="Nguong |yaw| (do) de bat dau gan Occluded khi visibility-mode=manual",
     )
     p.add_argument(
         "--yaw-outside",
         type=float,
         default=55.0,
-        help="Nguong |yaw| (do) de gan Outside=1 toan bo mat/long may phia xa",
+        help="Nguong |yaw| (do) de gan Outside=1 khi visibility-mode=manual",
     )
     p.add_argument(
         "--template-xml",
@@ -86,7 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--ensemble",
         default=None,
         choices=VALID_ENSEMBLES,
-        help="To hop landmark (spiga_tufa hoac spiga_only). Mac dinh: spiga_tufa",
+        help="To hop landmark (spiga_tufa_star, spiga_tufa, hoac spiga_only). Mac dinh tu dong chon tot nhat",
     )
     p.add_argument(
         "--headpose",
@@ -122,9 +129,9 @@ def main() -> None:
     t0 = time.time()
 
     weights_name = args.weights
-    detector_mode = "scrfd10g"
-    ensemble_mode = "spiga_tufa"
-    headpose_mode = "6drepnet"
+    detector_mode = None
+    ensemble_mode = None
+    headpose_mode = None
     use_tta = True
     use_two_pass = True
     use_roll_align = True
@@ -170,12 +177,14 @@ def main() -> None:
         use_two_pass=use_two_pass,
         use_roll_align=use_roll_align,
         use_photo_preprocess=use_photo_preprocess,
+        visibility_mode=args.visibility_mode,
     )
     print(
         f"[VF-50] Stack: weights={pipeline.weights_name} | detector={pipeline.default_detector_mode} | "
         f"ensemble={pipeline.default_ensemble_mode} | headpose={pipeline.default_headpose_mode} | "
         f"TTA={pipeline.use_tta} | 2-Pass={pipeline.use_two_pass} | "
-        f"RollAlign={pipeline.use_roll_align} | PhotoGuard={pipeline.use_photo_preprocess}"
+        f"RollAlign={pipeline.use_roll_align} | PhotoGuard={pipeline.use_photo_preprocess} | "
+        f"Visibility={pipeline.visibility_mode}"
     )
 
     def _on_progress(idx: int, total: int, name: str) -> None:
@@ -191,6 +200,7 @@ def main() -> None:
         template_xml_path=args.template_xml,
         save_previews=args.save_previews,
         progress_cb=_on_progress,
+        visibility_mode=args.visibility_mode,
     )
 
     detected_cnt = sum(1 for p in preds if p.detected)

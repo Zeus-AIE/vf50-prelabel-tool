@@ -286,16 +286,129 @@
     }
     .canvas-stage {
       flex: 1;
+      display: flex;
+      gap: 2px;
       position: relative;
       min-height: 0;
       overflow: hidden;
       background: #080a0e;
     }
+    .stage-pane {
+      flex: 1;
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      background: #080a0e;
+    }
+    #pane3d {
+      display: none;
+      background: radial-gradient(circle at 50% 45%, #111827 0%, #070a10 75%);
+      border-left: 1px solid var(--border);
+    }
+    .canvas-stage.mode-split #pane2d { display: block; flex: 1.05; }
+    .canvas-stage.mode-split #pane3d { display: block; flex: 1; }
+    .canvas-stage.mode-3d #pane2d { display: none; }
+    .canvas-stage.mode-3d #pane3d { display: block; flex: 1; border-left: none; }
     canvas {
       width: 100%;
       height: 100%;
       display: block;
       cursor: crosshair;
+    }
+    #canvas3d {
+      cursor: grab;
+    }
+    #canvas3d.is-orbiting {
+      cursor: grabbing;
+    }
+    .overlay3d-top {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      pointer-events: none;
+    }
+    .overlay3d-group {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      background: rgba(15, 20, 29, 0.88);
+      backdrop-filter: blur(6px);
+      border: 1px solid #2b3547;
+      border-radius: 7px;
+      padding: 4px 6px;
+      pointer-events: auto;
+    }
+    .overlay3d-group button {
+      padding: 2px 7px;
+      font-size: 11px;
+    }
+    .overlay3d-group button.active-preset {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .overlay3d-group label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin: 0 3px;
+      font-size: 11px;
+      color: #cbd5e1;
+      cursor: pointer;
+    }
+    .overlay3d-bottom {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      background: rgba(15, 20, 29, 0.85);
+      backdrop-filter: blur(6px);
+      border: 1px solid #263142;
+      border-radius: 7px;
+      padding: 5px 9px;
+      font-size: 11px;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+    .overlay3d-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .btn-3d-toggle {
+      width: 100%;
+      margin-top: 8px;
+      background: #172554;
+      border-color: #2563eb;
+      color: #bfdbfe;
+      font-weight: 600;
+    }
+    .btn-3d-toggle:hover {
+      background: #1d4ed8;
+      color: #fff;
     }
     .canvas-tooltip {
       position: absolute;
@@ -500,16 +613,138 @@
     .section-head h3 {
       margin: 0;
     }
+    .tt-rule {
+      margin-top: 5px;
+      padding: 4px 6px;
+      border-radius: 5px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      font-size: 11px;
+      line-height: 1.35;
+      color: #cbd5e1;
+      max-width: 280px;
+      white-space: normal;
+    }
+    .tt-rule-code {
+      display: inline-block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(56, 189, 248, 0.16);
+      color: #7dd3fc;
+      margin-bottom: 2px;
+    }
+    .explain-group {
+      background: #121720;
+      border: 1px solid #263142;
+      border-radius: 6px;
+      padding: 6px 8px;
+      margin-bottom: 6px;
+    }
+    .explain-group.st-occ { border-left: 3px solid var(--st-occ); }
+    .explain-group.st-out { border-left: 3px solid var(--st-out); }
+    .explain-group.st-vis { border-left: 3px solid var(--st-vis); }
+    .explain-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+    .explain-reason {
+      font-size: 11.5px;
+      line-height: 1.38;
+      color: #cbd5e1;
+      margin-bottom: 4px;
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 8, 14, 0.78);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal-dialog {
+      width: min(980px, 95vw);
+      max-height: 88vh;
+      background: #11161f;
+      border: 1px solid #2d384b;
+      border-radius: 10px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #161d28;
+      border-bottom: 1px solid #263042;
+    }
+    .modal-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 10px 16px;
+      background: #131923;
+      border-bottom: 1px solid #232c3b;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .modal-tab-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0b0f17;
+      font-weight: 700;
+    }
+    .modal-body {
+      padding: 14px 16px;
+      overflow-y: auto;
+      font-size: 12.5px;
+      line-height: 1.48;
+    }
+    .rule-item {
+      background: #161d29;
+      border: 1px solid #253042;
+      border-radius: 7px;
+      padding: 9px 11px;
+      margin-bottom: 8px;
+    }
+    .rule-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .rule-table th, .rule-table td {
+      border: 1px solid #263142;
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .rule-table th {
+      background: #18202c;
+      color: #93c5fd;
+    }
   </style>
 </head>
 <body>
   <header>
     <div class="brand">
       <span>VF-50 Local Pre-label Tool</span>
-      <span class="badge" id="hdrBadge">Mức 2: SCRFD-10G + SPIGA-IR + TUFA + 6DRepNet</span>
+      <span class="badge" id="hdrBadge">Mức 3: SCRFD-10G + SPIGA-IR + TUFA + 6DRepNet</span>
     </div>
     <div id="statusBar">Sẵn sàng — Nạp thư mục hoặc upload ảnh để bắt đầu.</div>
     <div class="header-actions">
+      <button id="btnOpenRules" type="button" onclick="openRuleCatalogModal()">📚 Thư viện Luật & Case VF-50</button>
       <button id="btnRunCurrent" class="primary" onclick="predictCurrent()">Chạy Ảnh Này</button>
       <button id="btnRunBatch" class="primary" onclick="predictBatch()">Chạy Tất Cả</button>
       <button id="btnExportXml" class="success" onclick="exportCVAT()">Xuất CVAT XML</button>
@@ -599,10 +834,18 @@
             </select>
           </div>
         </div>
-        <label>Ngưỡng |Yaw| → Occluded: <strong id="lblYawOcc">35°</strong></label>
-        <input id="yawOcc" type="range" min="15" max="60" step="1" value="35" oninput="document.getElementById('lblYawOcc').textContent=this.value+'°'" />
-        <label style="margin-top:6px;">Ngưỡng |Yaw| → Outside: <strong id="lblYawOut">55°</strong></label>
-        <input id="yawOut" type="range" min="30" max="80" step="1" value="55" oninput="document.getElementById('lblYawOut').textContent=this.value+'°'" />
+        <label>Chế độ gán Occluded / Outside</label>
+        <select id="visibilityMode" onchange="toggleVisibilityModeUI()">
+          <option value="auto" selected>Tự động (Auto: Hình học + 3-Model + Face Parsing)</option>
+          <option value="manual">Thủ công (Chỉnh 2 ngưỡng Yaw)</option>
+        </select>
+        <div id="autoVisHint" class="hint" style="margin-top:4px;">Tự động bắt quay nghiêng, khẩu trang, kính râm/lóa IR, tóc che (không cần chỉnh Yaw).</div>
+        <div id="manualYawBox" style="display:none; margin-top:6px;">
+          <label>Ngưỡng |Yaw| → Occluded: <strong id="lblYawOcc">35°</strong></label>
+          <input id="yawOcc" type="range" min="15" max="60" step="1" value="35" oninput="document.getElementById('lblYawOcc').textContent=this.value+'°'" />
+          <label style="margin-top:6px;">Ngưỡng |Yaw| → Outside: <strong id="lblYawOut">55°</strong></label>
+          <input id="yawOut" type="range" min="30" max="80" step="1" value="55" oninput="document.getElementById('lblYawOut').textContent=this.value+'°'" />
+        </div>
       </div>
 
       <div class="card">
@@ -630,15 +873,20 @@
         <button onclick="resetView()">Reset Zoom</button>
         <button id="btnManualBox" onclick="toggleManualBox()">Vẽ khung mặt (B)</button>
         <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;">
-          <input id="chkShowIds" type="checkbox" checked onchange="drawCanvas()" /> Hiện ID
+          <input id="chkShowIds" type="checkbox" checked onchange="drawCanvas(); draw3DCanvas();" /> Hiện ID
         </label>
         <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;" title="Bật sẵn để luôn thấy điểm bị gắn Outside=1 dưới dạng dấu ⊗">
-          <input id="chkShowOutside" type="checkbox" checked onchange="drawCanvas()" /> Hiện Outside
+          <input id="chkShowOutside" type="checkbox" checked onchange="drawCanvas(); draw3DCanvas();" /> Hiện Outside
         </label>
         <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;" title="Hiển thị vòng tím nét đứt khi AI thiếu tự tin (Conf < 65%)">
           <input id="chkShowUncertainty" type="checkbox" checked onchange="drawCanvas()" /> Vòng bất định
         </label>
         <div class="spacer"></div>
+        <div class="mode-switch" role="group" aria-label="Chế độ xem 2D/3D">
+          <button type="button" class="mode-btn active" data-view-layout="2d" onclick="setViewLayout('2d')" title="Chỉ hiển thị ảnh 2D">🖼 2D Ảnh</button>
+          <button type="button" class="mode-btn" data-view-layout="split" onclick="setViewLayout('split')" title="Hiển thị song song ảnh 2D và mô hình 3D raycasting">🌗 Song song 2D + 3D</button>
+          <button type="button" class="mode-btn" data-view-layout="3d" onclick="setViewLayout('3d')" title="Toàn màn hình Mô hình 3D Studio">🧊 3D Mô hình</button>
+        </div>
         <div class="mode-switch" role="group" aria-label="Chế độ màu điểm">
           <button type="button" class="mode-btn active" data-color-mode="state" onclick="setColorMode('state')" title="Tô màu điểm theo thuộc tính Visible / Occluded / Outside (Khuyên dùng)">Màu: Trạng thái</button>
           <button type="button" class="mode-btn" data-color-mode="skeleton" onclick="setColorMode('skeleton')" title="Tô màu điểm theo 7 nhóm Skeleton, vẫn giữ hình dạng ● ◆ ⊗">Màu: Skeleton</button>
@@ -671,8 +919,37 @@
       </div>
 
       <div id="canvasStage" class="canvas-stage">
-        <canvas id="canvas"></canvas>
-        <div id="canvasTooltip" class="canvas-tooltip" role="status" aria-live="polite"></div>
+        <div id="pane2d" class="stage-pane">
+          <canvas id="canvas"></canvas>
+          <div id="canvasTooltip" class="canvas-tooltip" role="status" aria-live="polite"></div>
+        </div>
+        <div id="pane3d" class="stage-pane">
+          <canvas id="canvas3d"></canvas>
+          <div class="overlay3d-top">
+            <div class="overlay3d-group">
+              <button type="button" class="preset3d-btn active-preset" data-preset="camera" onclick="set3DCameraPreset('camera')">📷 Góc Camera (0°)</button>
+              <button type="button" class="preset3d-btn" data-preset="left" onclick="set3DCameraPreset('left')">📐 Ngang Trái (-90°)</button>
+              <button type="button" class="preset3d-btn" data-preset="right" onclick="set3DCameraPreset('right')">📐 Ngang Phải (+90°)</button>
+              <button type="button" class="preset3d-btn" data-preset="top" onclick="set3DCameraPreset('top')">🔼 Từ Trên Xuống (Top Z-Buffer)</button>
+              <button type="button" id="btn3DTurntable" onclick="toggle3DTurntable()">🔄 Tự xoay</button>
+            </div>
+            <div class="overlay3d-group">
+              <label><input id="chk3DMesh" type="checkbox" checked onchange="draw3DCanvas()" /> Lưới mặt</label>
+              <label><input id="chk3DNose" type="checkbox" checked onchange="draw3DCanvas()" /> Chóp mũi 3D</label>
+              <label><input id="chk3DRays" type="checkbox" checked onchange="draw3DCanvas()" /> Tia Raycast</label>
+              <label><input id="chk3DNormals" type="checkbox" checked onchange="draw3DCanvas()" /> Pháp tuyến n⃗</label>
+            </div>
+          </div>
+          <div id="tooltip3d" class="canvas-tooltip" role="status" aria-live="polite"></div>
+          <div class="overlay3d-bottom">
+            <div class="overlay3d-legend">
+              <span><span class="badge-dot" style="background:#22c55e;"></span>Tia xanh = Nhìn thông suốt</span>
+              <span><span class="badge-dot" style="background:#f59e0b;"></span>Tia cam + ✕ = Bị chóp mũi 3D chắn</span>
+              <span><span class="badge-dot" style="background:#38bdf8;"></span>Mũi tên n⃗ = Pháp tuyến bề mặt cos θ</span>
+            </div>
+            <div id="info3dOrbit">Orbit: 0° / 0° • Kéo chuột trái: Xoay 3D • Lăn chuột: Zoom • Click phải điểm: Đổi V/O/X</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -691,8 +968,24 @@
       </div>
 
       <div class="card">
+        <h3>Mô hình 3D & Raycasting Tự che khuất</h3>
+        <div class="stats-grid">
+          <div class="stat-cell"><div class="k">Pháp tuyến mắt xa (cos θ)</div><div class="v" id="stat3DEyeCos">-</div></div>
+          <div class="stat-cell"><div class="k">Pháp tuyến mày xa (cos θ)</div><div class="v" id="stat3DBrowCos">-</div></div>
+          <div class="stat-cell"><div class="k">Tia 3D cắt chóp mũi</div><div class="v" id="stat3DNoseHits">-</div></div>
+          <div class="stat-cell"><div class="k">Qua đỉnh sống mũi</div><div class="v" id="stat3DRidgeCross">-</div></div>
+        </div>
+        <button type="button" id="btnToggle3DSplit" class="btn-3d-toggle" onclick="setViewLayout(viewLayout === '2d' ? 'split' : '2d')">🧊 Mở / Tắt Khung 3D Song Song</button>
+      </div>
+
+      <div class="card">
         <h3>7 Skeleton & 50 Điểm (Click chip đổi V/O/X)</h3>
         <div id="skelControls"></div>
+      </div>
+
+      <div class="card">
+        <h3>Giải thích điểm Occluded / Outside</h3>
+        <div id="pointExplainPanel" class="hint">Chưa có điểm bị che hoặc ngoài vùng.</div>
       </div>
 
       <div class="card">
@@ -701,6 +994,26 @@
       </div>
     </aside>
   </main>
+
+  <div id="ruleCatalogModal" class="modal-backdrop" onclick="if (event.target === this) closeRuleCatalogModal();">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="ruleModalTitle">
+      <div class="modal-header">
+        <div>
+          <strong id="ruleModalTitle" style="font-size:14px; color:#f8fafc;">📚 Thư viện Luật & Case Guideline VF-50</strong>
+          <div class="hint">Quy tắc đánh trạng thái điểm (Visible / Occluded / Outside), Bảng 3.1 & các case tài xế thực tế</div>
+        </div>
+        <button type="button" onclick="closeRuleCatalogModal()">✕ Đóng</button>
+      </div>
+      <div class="modal-tabs">
+        <button type="button" class="modal-tab-btn active" data-rule-tab="rules" onclick="switchRuleTab('rules')">Luật từng điểm</button>
+        <button type="button" class="modal-tab-btn" data-rule-tab="table31" onclick="switchRuleTab('table31')">Bảng 3.1 (Cả Skeleton)</button>
+        <button type="button" class="modal-tab-btn" data-rule-tab="cases" onclick="switchRuleTab('cases')">Case đặc biệt (Mục 4)</button>
+        <button type="button" class="modal-tab-btn" data-rule-tab="qc" onclick="switchRuleTab('qc')">Cờ QC (Mục 5)</button>
+        <input id="ruleSearchInput" type="text" placeholder="Tìm mã luật / từ khóa (kính râm, mũi, môi...)" style="margin-left:auto; width:260px;" oninput="renderRuleCatalogBody()" />
+      </div>
+      <div id="ruleCatalogBody" class="modal-body">Đang tải thư viện luật...</div>
+    </div>
+  </div>
 
   <script>
     let SCHEMA = null;
@@ -727,8 +1040,21 @@
     let boxStart = null;
     let boxEnd = null;
 
+    let viewLayout = "2d";        // "2d" | "split" | "3d"
+    let orbitYaw = 0.0;
+    let orbitPitch = 0.0;
+    let orbitZoom = 1.0;
+    let isOrbiting3D = false;
+    let orbitDragLast = { x: 0, y: 0 };
+    let turntableActive = false;
+    let turntableRaf = null;
+    let last3DProjectedPts = [];
+    let last3DMouse = null;
+
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
+    const canvas3d = document.getElementById("canvas3d");
+    const ctx3d = canvas3d.getContext("2d");
     const STATE_STYLE = {
       visible: { label: "Visible", badge: "Visible (Nhìn rõ ±5px)", cls: "st-vis", fill: "#22c55e", text: "#ffffff", suffix: "" },
       occluded: { label: "Occluded", badge: "Occluded (Bị che, nội suy ±20px)", cls: "st-occ", fill: "#f59e0b", text: "#fde047", suffix: "O" },
@@ -765,16 +1091,73 @@
 
     function setColorMode(mode) {
       colorMode = mode;
-      document.querySelectorAll(".mode-btn").forEach(btn => {
+      document.querySelectorAll(".mode-btn[data-color-mode]").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.colorMode === mode);
       });
       drawCanvas();
+      draw3DCanvas();
+    }
+
+    function setViewLayout(layout) {
+      viewLayout = layout;
+      const stage = document.getElementById("canvasStage");
+      if (stage) {
+        stage.classList.remove("mode-split", "mode-3d");
+        if (layout === "split") stage.classList.add("mode-split");
+        else if (layout === "3d") stage.classList.add("mode-3d");
+      }
+      document.querySelectorAll(".mode-btn[data-view-layout]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.viewLayout === layout);
+      });
+      const toggleBtn = document.getElementById("btnToggle3DSplit");
+      if (toggleBtn) {
+        toggleBtn.textContent = layout === "2d" ? "🧊 Mở Khung 3D Song Song" : "🖼 Tắt Khung 3D (Về 2D)";
+      }
+      if (layout === "2d" && turntableActive) {
+        toggle3DTurntable();
+      }
+      resizeCanvas();
+      if (CURRENT_IMG_EL && layout !== "3d") {
+        resetView();
+      }
+      draw3DCanvas();
+    }
+
+    function set3DCameraPreset(preset) {
+      if (turntableActive) toggle3DTurntable();
+      if (preset === "camera") { orbitYaw = 0.0; orbitPitch = 0.0; }
+      else if (preset === "left") { orbitYaw = -82.0; orbitPitch = 0.0; }
+      else if (preset === "right") { orbitYaw = 82.0; orbitPitch = 0.0; }
+      else if (preset === "top") { orbitYaw = 0.0; orbitPitch = -82.0; }
+      document.querySelectorAll(".preset3d-btn").forEach(btn => {
+        btn.classList.toggle("active-preset", btn.dataset.preset === preset);
+      });
+      draw3DCanvas();
+    }
+
+    function toggle3DTurntable() {
+      turntableActive = !turntableActive;
+      const btn = document.getElementById("btn3DTurntable");
+      if (btn) btn.classList.toggle("active-preset", turntableActive);
+      if (turntableActive) {
+        const step = () => {
+          if (!turntableActive || viewLayout === "2d") return;
+          orbitYaw = ((orbitYaw + 0.65 + 180) % 360) - 180;
+          draw3DCanvas();
+          turntableRaf = requestAnimationFrame(step);
+        };
+        turntableRaf = requestAnimationFrame(step);
+      } else if (turntableRaf !== null) {
+        cancelAnimationFrame(turntableRaf);
+        turntableRaf = null;
+      }
     }
 
     function setSpotlightFilter(filter) {
       activeFilter = (activeFilter === filter && filter !== "all") ? "all" : filter;
       updateLegendBar();
       drawCanvas();
+      draw3DCanvas();
     }
 
     function updateLegendBar() {
@@ -805,10 +1188,21 @@
       if (el) el.style.display = "none";
     }
 
-    function renderTooltip(pt, sx, sy) {
-      const el = document.getElementById("canvasTooltip");
-      const stage = document.getElementById("canvasStage");
-      if (!el || !stage || !pt) { hideTooltip(); return; }
+    function hide3DTooltip() {
+      const el = document.getElementById("tooltip3d");
+      if (el) el.style.display = "none";
+    }
+
+    function escapeHtml(str) {
+      return String(str === undefined || str === null ? "" : str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderTooltipAt(el, stage, pt, sx, sy, extraHtml = "") {
+      if (!el || !stage || !pt) { if (el) el.style.display = "none"; return; }
       const stKey = getPointStateKey(pt);
       const meta = STATE_STYLE[stKey];
       const confPct = pt.confidence !== undefined ? Math.round(pt.confidence * 100) : 100;
@@ -816,20 +1210,33 @@
       const uncLine = isPointUncertain(pt)
         ? `<div class="tt-unc">⚠ AI Nghi ngờ: Conf ${confPct}% (±${uncPx}px) — kiểm tra vị trí</div>`
         : `<div class="tt-meta">Độ tin cậy AI: <b>${confPct}%</b> (±${uncPx}px)</div>`;
+      const ruleCode = pt.rule_code || (stKey === "visible" ? "R_PT_VISIBLE" : "R_MANUAL_EDIT");
+      const catalogRule = (SCHEMA && SCHEMA.guideline_rules && SCHEMA.guideline_rules.rule_map)
+        ? SCHEMA.guideline_rules.rule_map[ruleCode]
+        : null;
+      const ruleReason = pt.reason || (catalogRule ? catalogRule.title : "");
+      const ruleBox = `
+        <div class="tt-rule">
+          <div class="tt-rule-code">${escapeHtml(ruleCode)}</div>
+          <div>${escapeHtml(ruleReason)}</div>
+        </div>
+      `;
 
       el.innerHTML = `
         <div class="tt-head">
-          <span>ID #${pt.point_id} • ${pt.skeleton}</span>
+          <span>ID #${pt.point_id} • ${escapeHtml(pt.skeleton)}</span>
           <span class="hint">(${pt.x.toFixed(1)}, ${pt.y.toFixed(1)})</span>
         </div>
         <span class="tt-badge ${meta.cls}">${meta.badge}</span>
         ${uncLine}
+        ${ruleBox}
+        ${extraHtml}
         <div class="tt-keys">Phím tắt: <b>V</b> Visible · <b>O</b> Occluded · <b>X</b> Outside · Chuột phải: Đổi</div>
       `;
       el.style.display = "block";
 
-      const stageW = stage.clientWidth || canvas.width;
-      const stageH = stage.clientHeight || canvas.height;
+      const stageW = stage.clientWidth || 400;
+      const stageH = stage.clientHeight || 300;
       const tw = el.offsetWidth || 230;
       const th = el.offsetHeight || 110;
       let left = sx + 14;
@@ -840,18 +1247,40 @@
       el.style.top = `${Math.round(top)}px`;
     }
 
+    function renderTooltip(pt, sx, sy) {
+      renderTooltipAt(document.getElementById("canvasTooltip"), document.getElementById("pane2d") || document.getElementById("canvasStage"), pt, sx, sy);
+    }
+
+    function render3DTooltip(pt, f3d, sx, sy) {
+      const el = document.getElementById("tooltip3d");
+      const stage = document.getElementById("pane3d");
+      if (!pt || !f3d) { hide3DTooltip(); return; }
+      const cosV = f3d.point_cos_view[pt.point_id];
+      const depthV = f3d.point_nose_ray_depth[pt.point_id];
+      const hitV = f3d.point_nose_occluded[pt.point_id];
+      const cosStr = cosV !== undefined ? cosV.toFixed(2) : "-";
+      const hitStr = hitV
+        ? `<span style="color:#fbbf24;">Chóp mũi chắn (Δz=${depthV.toFixed(3)}s)</span>`
+        : `<span style="color:#86efac;">Nhìn thông suốt</span>`;
+      const extra = `<div class="tt-meta">3D: cos θ = <b>${cosStr}</b> • ${hitStr}</div>`;
+      renderTooltipAt(el, stage, pt, sx, sy, extra);
+    }
+
     function syncHoverHighlightUI() {
       document.querySelectorAll(".pt-chip").forEach(ch => {
         const pid = parseInt(ch.dataset.pointId, 10);
         ch.classList.toggle("is-hot", pid === hoverPointId || pid === dragPointId);
       });
-      if (hoverPointId !== null && lastMouseScreen) {
-        const pred = getCurrentPred();
-        const pt = pred && pred.points ? pred.points.find(p => p.point_id === hoverPointId) : null;
-        if (pt) renderTooltip(pt, lastMouseScreen.sx, lastMouseScreen.sy);
-        else hideTooltip();
+      const pred = getCurrentPred();
+      const pt = (hoverPointId !== null && pred && pred.points)
+        ? pred.points.find(p => p.point_id === hoverPointId)
+        : null;
+      if (pt && lastMouseScreen) renderTooltip(pt, lastMouseScreen.sx, lastMouseScreen.sy);
+      else hideTooltip();
+      if (pt && last3DMouse && pred && pred.face_3d && viewLayout !== "2d") {
+        render3DTooltip(pt, pred.face_3d, last3DMouse.sx, last3DMouse.sy);
       } else {
-        hideTooltip();
+        hide3DTooltip();
       }
     }
 
@@ -948,7 +1377,11 @@
       const badge = document.getElementById("hdrBadge");
       if (matched) {
         if (descEl) descEl.textContent = `${matched.title}: ${matched.description}`;
-        if (badge) badge.textContent = `${matched.label} (${matched.title})`;
+        if (badge) {
+          badge.textContent = (matched.id === "level3" && SCHEMA.star_ready)
+            ? "Mức 3: SCRFD-10G + SPIGA-IR + TUFA + STAR + 6DRepNet"
+            : `${matched.label} (${matched.title})`;
+        }
       } else {
         if (descEl) descEl.textContent = `Tùy chỉnh (Custom): ${curD.toUpperCase()} + ${curE} + ${curW}`;
         if (badge) badge.textContent = `Custom: ${curD.toUpperCase()} + ${curE}`;
@@ -966,7 +1399,8 @@
         "yunet": "YuNet (Mức 1 - Nhanh)",
       });
       fillSelect("ensembleSelect", SCHEMA.available_ensembles, SCHEMA.default_ensemble || "spiga_only", {
-        "spiga_tufa": "Ensemble: SPIGA + TUFA (Mức 2/3)",
+        "spiga_tufa_star": "Ensemble 3 Model: SPIGA + TUFA + STAR (Tối ưu nhất)",
+        "spiga_tufa": "Ensemble 2 Model: SPIGA + TUFA (Nhanh hơn)",
         "spiga_only": "SPIGA đơn lẻ (Mức 1)",
       });
       fillSelect("headposeSelect", SCHEMA.available_headposes, SCHEMA.default_headpose || "spiga", {
@@ -975,6 +1409,17 @@
       });
       renderLevelButtons();
       applyLevelPreset(SCHEMA.default_level || "level3");
+      toggleVisibilityModeUI();
+    }
+
+    function toggleVisibilityModeUI() {
+      const modeEl = document.getElementById("visibilityMode");
+      const box = document.getElementById("manualYawBox");
+      const hint = document.getElementById("autoVisHint");
+      if (!modeEl || !box || !hint) return;
+      const isManual = modeEl.value === "manual";
+      box.style.display = isManual ? "block" : "none";
+      hint.style.display = isManual ? "none" : "block";
     }
 
     function setupPasteAndDrop() {
@@ -1036,11 +1481,18 @@
     }
 
     function resizeCanvas() {
-      const stage = document.getElementById("canvasStage");
-      const rect = (stage || canvas.parentElement).getBoundingClientRect();
-      canvas.width = Math.max(300, Math.floor(rect.width));
-      canvas.height = Math.max(200, Math.floor(rect.height));
+      const stage2d = document.getElementById("pane2d") || document.getElementById("canvasStage");
+      if (stage2d && stage2d.clientWidth > 0 && stage2d.clientHeight > 0) {
+        canvas.width = Math.max(240, Math.floor(stage2d.clientWidth));
+        canvas.height = Math.max(200, Math.floor(stage2d.clientHeight));
+      }
+      const pane3d = document.getElementById("pane3d");
+      if (pane3d && pane3d.clientWidth > 0 && pane3d.clientHeight > 0) {
+        canvas3d.width = Math.max(240, Math.floor(pane3d.clientWidth));
+        canvas3d.height = Math.max(200, Math.floor(pane3d.clientHeight));
+      }
       drawCanvas();
+      draw3DCanvas();
     }
 
     async function refreshImageList(keepIdx = false) {
@@ -1060,6 +1512,7 @@
         updateLegendBar();
         updateRightPanel();
         drawCanvas();
+        draw3DCanvas();
       }
     }
 
@@ -1396,6 +1849,7 @@
 
     function refreshAfterStateChange() {
       drawCanvas();
+      draw3DCanvas();
       updateLegendBar();
       updateRightPanel();
       syncHoverHighlightUI();
@@ -1468,6 +1922,7 @@
     function onChipHover(pid) {
       beaconPointId = pid;
       drawCanvas();
+      draw3DCanvas();
     }
 
     async function onChipClick(pid) {
@@ -1488,7 +1943,12 @@
       const cntEl = document.getElementById("statCounts");
       const confEl = document.getElementById("statConfidence");
       const stackEl = document.getElementById("statStack");
+      const eye3dEl = document.getElementById("stat3DEyeCos");
+      const brow3dEl = document.getElementById("stat3DBrowCos");
+      const hits3dEl = document.getElementById("stat3DNoseHits");
+      const cross3dEl = document.getElementById("stat3DRidgeCross");
       const skelEl = document.getElementById("skelControls");
+      const explainEl = document.getElementById("pointExplainPanel");
       const qcEl = document.getElementById("qcPanel");
 
       if (!pred) {
@@ -1498,8 +1958,14 @@
         cntEl.textContent = "-";
         confEl.textContent = "-";
         stackEl.textContent = "-";
+        if (eye3dEl) eye3dEl.textContent = "-";
+        if (brow3dEl) brow3dEl.textContent = "-";
+        if (hits3dEl) hits3dEl.textContent = "-";
+        if (cross3dEl) cross3dEl.textContent = "-";
         skelEl.innerHTML = `<div class="hint">Chưa có nhãn cho ảnh này. Nhấn <b>Chạy Ảnh Này</b>.</div>`;
+        if (explainEl) explainEl.innerHTML = `<div class="hint">Chưa có dữ liệu giải thích điểm.</div>`;
         qcEl.innerHTML = `<div class="hint">Chưa chạy pre-label.</div>`;
+        draw3DCanvas();
         return;
       }
 
@@ -1519,7 +1985,39 @@
       const engTag = (pred.engine_used || "spiga_only").toUpperCase();
       const hpTag = (pred.headpose_used || "spiga").toUpperCase();
       const ppTag = pred.preprocess_applied && pred.preprocess_applied !== "none" ? pred.preprocess_applied : "";
-      stackEl.innerHTML = `${detTag} + ${engTag} + ${hpTag}` + (ppTag ? `<div class="hint" style="margin-top:2px; color:#93c5fd;">Pre: ${ppTag}</div>` : "");
+      const visTag = pred.visibility_summary || "";
+      stackEl.innerHTML = `${detTag} + ${engTag} + ${hpTag}`
+        + (ppTag ? `<div class="hint" style="margin-top:2px; color:#93c5fd;">Pre: ${ppTag}</div>` : "")
+        + (visTag ? `<div class="hint" style="margin-top:2px; color:#a7f3d0;">Vis: ${visTag}</div>` : "");
+
+      const f3d = pred.face_3d;
+      if (f3d && eye3dEl && brow3dEl && hits3dEl && cross3dEl) {
+        const ec = f3d.far_eye_cos_mean;
+        const ecm = f3d.far_eye_cos_min;
+        const ecColor = (ec >= 0.30 && ecm >= 0.15) ? "#86efac" : (ec >= 0.05 ? "#fde047" : "#fda4af");
+        eye3dEl.innerHTML = `<span style="color:${ecColor}">${ec >= 0 ? "+" : ""}${ec.toFixed(2)} / ${ecm >= 0 ? "+" : ""}${ecm.toFixed(2)}</span>`;
+
+        const bc = f3d.far_brow_cos_mean;
+        const bcm = f3d.far_brow_cos_min;
+        const bcColor = (bc >= 0.25 && bcm >= 0.0) ? "#86efac" : (bc >= 0.0 ? "#fde047" : "#fda4af");
+        brow3dEl.innerHTML = `<span style="color:${bcColor}">${bc >= 0 ? "+" : ""}${bc.toFixed(2)} / ${bcm >= 0 ? "+" : ""}${bcm.toFixed(2)}</span>`;
+
+        const nh = f3d.far_eye_nose_hits_3d || 0;
+        hits3dEl.innerHTML = nh === 0
+          ? `<span style="color:#86efac">0/8 (Không che)</span>`
+          : `<span style="color:#fde047">${nh}/8 (Mũi chắn)</span>`;
+
+        const rc = f3d.far_eye_ridge_cross_3d || 0;
+        cross3dEl.innerHTML = rc === 0
+          ? `<span style="color:#86efac">0/8</span>`
+          : `<span style="color:#fda4af">${rc}/8</span>`;
+      } else if (eye3dEl) {
+        eye3dEl.textContent = "-";
+        brow3dEl.textContent = "-";
+        hits3dEl.textContent = "-";
+        cross3dEl.textContent = "-";
+      }
+      draw3DCanvas();
 
       if (SCHEMA) {
         skelEl.innerHTML = "";
@@ -1588,8 +2086,53 @@
         });
       }
 
+      if (explainEl) {
+        const grouped = new Map();
+        const addToGroup = (p, stateCls, stateLabel) => {
+          const code = p.rule_code || (p.outside ? "R_PT_OUT_OF_FRAME" : (p.occluded ? "R_MANUAL_EDIT" : "R_PT_VISIBLE"));
+          const rsn = p.reason || ((SCHEMA && SCHEMA.guideline_rules && SCHEMA.guideline_rules.rule_map && SCHEMA.guideline_rules.rule_map[code])
+            ? SCHEMA.guideline_rules.rule_map[code].title
+            : "Theo cấu hình quy tắc VF-50.");
+          const key = `${stateCls}|${p.skeleton}|${code}|${rsn}`;
+          if (!grouped.has(key)) {
+            grouped.set(key, { stateCls, stateLabel, skeleton: p.skeleton, code, reason: rsn, ids: [] });
+          }
+          grouped.get(key).ids.push(p.point_id);
+        };
+
+        pred.points.forEach(p => {
+          if (p.outside) addToGroup(p, "st-out", "Outside");
+          else if (p.occluded) addToGroup(p, "st-occ", "Occluded");
+          else if (p.rule_code && p.rule_code !== "R_PT_VISIBLE") addToGroup(p, "st-vis", "Visible đặc biệt");
+        });
+
+        if (grouped.size === 0) {
+          explainEl.innerHTML = `<div style="color:#86efac;">Tất cả 50 điểm đều Visible rõ ràng (R_PT_VISIBLE).</div>`;
+        } else {
+          const items = Array.from(grouped.values()).sort((a, b) => {
+            const ord = { "st-out": 0, "st-occ": 1, "st-vis": 2 };
+            return (ord[a.stateCls] - ord[b.stateCls]) || (a.ids[0] - b.ids[0]);
+          });
+          explainEl.innerHTML = items.map(g => {
+            const chips = g.ids.map(pid =>
+              `<button type="button" class="pt-chip ${g.stateCls}" data-point-id="${pid}" onmouseenter="onChipHover(${pid})" onmouseleave="onChipHover(null)" onclick="onChipClick(${pid})">#${pid}</button>`
+            ).join("");
+            return `
+              <div class="explain-group ${g.stateCls}">
+                <div class="explain-head">
+                  <span><b>${escapeHtml(g.skeleton)}</b> · <span>${escapeHtml(g.stateLabel)}</span></span>
+                  <span class="tt-rule-code">${escapeHtml(g.code)}</span>
+                </div>
+                <div class="explain-reason">${escapeHtml(g.reason)}</div>
+                <div class="pt-chip-grid">${chips}</div>
+              </div>
+            `;
+          }).join("");
+        }
+      }
+
       if (pred.qc_flags && pred.qc_flags.length > 0) {
-        qcEl.innerHTML = pred.qc_flags.map(f => `<div class="qc-box"><strong>${f.issue_type}</strong><br/>${f.reason}</div>`).join("");
+        qcEl.innerHTML = pred.qc_flags.map(f => `<div class="qc-box"><strong>${escapeHtml(f.issue_type)}</strong><br/>${escapeHtml(f.reason)}</div>`).join("");
       } else {
         qcEl.innerHTML = `<div style="color:#86efac;">Không có cảnh báo QC.</div>`;
       }
@@ -1722,6 +2265,7 @@
       if (nextHover !== hoverPointId) {
         hoverPointId = nextHover;
         drawCanvas();
+        draw3DCanvas();
         syncHoverHighlightUI();
       } else if (hit) {
         renderTooltip(hit, sx, sy);
@@ -1742,6 +2286,7 @@
       if (dragPointId === null && hoverPointId !== null) {
         hoverPointId = null;
         drawCanvas();
+        draw3DCanvas();
       }
       hideTooltip();
       syncHoverHighlightUI();
@@ -1752,9 +2297,14 @@
       if (isPanning) {
         isPanning = false;
       }
+      if (isOrbiting3D) {
+        isOrbiting3D = false;
+        canvas3d.classList.remove("is-orbiting");
+      }
       if (dragPointId !== null) {
         dragPointId = null;
         drawCanvas();
+        draw3DCanvas();
         await saveCurrentEdits();
       }
       if (drawingBox && boxStart && boxEnd) {
@@ -1773,6 +2323,487 @@
           drawCanvas();
         }
       }
+    });
+
+    function rotate3DVector(v, yawDeg, pitchDeg) {
+      const yr = yawDeg * Math.PI / 180.0;
+      const pr = pitchDeg * Math.PI / 180.0;
+      const cy = Math.cos(yr), sy = Math.sin(yr);
+      const cp = Math.cos(pr), sp = Math.sin(pr);
+      const x1 = cy * v[0] + sy * v[2];
+      const y1 = v[1];
+      const z1 = -sy * v[0] + cy * v[2];
+      const y2 = cp * y1 - sp * z1;
+      const z2 = sp * y1 + cp * z1;
+      return [x1, y2, z2];
+    }
+
+    function project3DPoint(vr, cx, cy, scalePx) {
+      const camDist = 4.5;
+      const persp = camDist / Math.max(0.85, camDist - vr[2] * 0.55);
+      return {
+        x: cx + vr[0] * scalePx * persp,
+        y: cy + vr[1] * scalePx * persp,
+        z: vr[2],
+      };
+    }
+
+    function findNearest3DPoint(sx, sy, maxDist = 13) {
+      let best = null;
+      let bestDist = maxDist;
+      for (const item of last3DProjectedPts) {
+        const d = Math.hypot(item.sx - sx, item.sy - sy);
+        if (d < bestDist) {
+          bestDist = d;
+          best = item.pt;
+        }
+      }
+      return best;
+    }
+
+    function draw3DCanvas() {
+      if (viewLayout === "2d") return;
+      const W = canvas3d.width || 400;
+      const H = canvas3d.height || 300;
+      if (W < 20 || H < 20) return;
+
+      const grad = ctx3d.createRadialGradient(W * 0.5, H * 0.45, 20, W * 0.5, H * 0.5, Math.max(W, H) * 0.72);
+      grad.addColorStop(0, "#131c2e");
+      grad.addColorStop(1, "#070a10");
+      ctx3d.fillStyle = grad;
+      ctx3d.fillRect(0, 0, W, H);
+
+      const orbitInfo = document.getElementById("info3dOrbit");
+      if (orbitInfo) {
+        orbitInfo.textContent = `Orbit: ${Math.round(orbitYaw)}° / ${Math.round(orbitPitch)}° · Zoom ${orbitZoom.toFixed(1)}x • Kéo trái: Xoay 3D • Lăn: Zoom • Click phải điểm: V/O/X`;
+      }
+
+      const pred = getCurrentPred();
+      if (!pred || !pred.face_3d || !pred.points || !SCHEMA) {
+        last3DProjectedPts = [];
+        ctx3d.font = "600 13px Segoe UI, sans-serif";
+        ctx3d.fillStyle = "#94a3b8";
+        ctx3d.textAlign = "center";
+        ctx3d.fillText("Chưa có dữ liệu 3D — hãy nạp ảnh và nhấn 'Chạy Ảnh Này'.", W * 0.5, H * 0.5);
+        ctx3d.textAlign = "left";
+        return;
+      }
+
+      const f3d = pred.face_3d;
+      const cx = W * 0.5;
+      const cy = H * 0.52;
+      const scalePx = Math.min(W, H) * 0.42 * orbitZoom;
+
+      // Subtle 3D reference horizon grid / orbit circle
+      ctx3d.save();
+      ctx3d.strokeStyle = "rgba(148, 163, 184, 0.14)";
+      ctx3d.lineWidth = 1;
+      for (const ringR of [0.55, 0.95]) {
+        ctx3d.beginPath();
+        for (let a = 0; a <= 64; a++) {
+          const th = (a / 64) * Math.PI * 2;
+          const vr = rotate3DVector([Math.cos(th) * ringR, 0.42, Math.sin(th) * ringR], orbitYaw, orbitPitch);
+          const pr = project3DPoint(vr, cx, cy, scalePx);
+          if (a === 0) ctx3d.moveTo(pr.x, pr.y);
+          else ctx3d.lineTo(pr.x, pr.y);
+        }
+        ctx3d.stroke();
+      }
+      ctx3d.restore();
+
+      const vertsRaw = f3d.vertices_norm || [];
+      const normalsRaw = f3d.normals || [];
+      const noseVertsRaw = f3d.nasal_pyramid_vertices || [];
+
+      const vertsRot = vertsRaw.map(v => rotate3DVector(v, orbitYaw, orbitPitch));
+      const vertsProj = vertsRot.map(vr => project3DPoint(vr, cx, cy, scalePx));
+      const noseRot = noseVertsRaw.map(v => rotate3DVector(v, orbitYaw, orbitPitch));
+      const noseProj = noseRot.map(vr => project3DPoint(vr, cx, cy, scalePx));
+
+      const ptsMap = {};
+      pred.points.forEach(p => { ptsMap[p.point_id] = p; });
+      const showMesh = document.getElementById("chk3DMesh") ? document.getElementById("chk3DMesh").checked : true;
+      const showNose = document.getElementById("chk3DNose") ? document.getElementById("chk3DNose").checked : true;
+      const showRays = document.getElementById("chk3DRays") ? document.getElementById("chk3DRays").checked : true;
+      const showNormals = document.getElementById("chk3DNormals") ? document.getElementById("chk3DNormals").checked : true;
+      const showOutside = document.getElementById("chkShowOutside").checked;
+      const showIds = document.getElementById("chkShowIds").checked;
+      const skelColorMap = getSkeletonColorMap();
+
+      // Depth-sorted triangles (face surface + 3D nasal pyramid)
+      const triList = [];
+      if (showMesh && f3d.face_mesh_triangles) {
+        f3d.face_mesh_triangles.forEach(([ia, ib, ic]) => {
+          const va = vertsRot[ia], vb = vertsRot[ib], vc = vertsRot[ic];
+          const pa = vertsProj[ia], pb = vertsProj[ib], pc = vertsProj[ic];
+          if (!va || !vb || !vc || !pa || !pb || !pc) return;
+          const ux = vb[0] - va[0], uy = vb[1] - va[1], uz = vb[2] - va[2];
+          const vx = vc[0] - va[0], vy = vc[1] - va[1], vz = vc[2] - va[2];
+          const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+          const nlen = Math.hypot(nx, ny, nz) || 1.0;
+          const lambert = Math.abs(nz / nlen);
+          triList.push({
+            kind: "face",
+            avgZ: (pa.z + pb.z + pc.z) / 3.0,
+            pa, pb, pc,
+            lambert,
+          });
+        });
+      }
+      if (showNose && f3d.nasal_pyramid_triangles && noseProj.length === 12) {
+        f3d.nasal_pyramid_triangles.forEach(([ia, ib, ic]) => {
+          const va = noseRot[ia], vb = noseRot[ib], vc = noseRot[ic];
+          const pa = noseProj[ia], pb = noseProj[ib], pc = noseProj[ic];
+          if (!va || !vb || !vc || !pa || !pb || !pc) return;
+          const ux = vb[0] - va[0], uy = vb[1] - va[1], uz = vb[2] - va[2];
+          const vx = vc[0] - va[0], vy = vc[1] - va[1], vz = vc[2] - va[2];
+          const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+          const nlen = Math.hypot(nx, ny, nz) || 1.0;
+          const lambert = Math.abs(nz / nlen);
+          triList.push({
+            kind: "nose",
+            avgZ: (pa.z + pb.z + pc.z) / 3.0 + 0.015,
+            pa, pb, pc,
+            lambert,
+          });
+        });
+      }
+      triList.sort((a, b) => a.avgZ - b.avgZ);
+
+      for (const tr of triList) {
+        ctx3d.beginPath();
+        ctx3d.moveTo(tr.pa.x, tr.pa.y);
+        ctx3d.lineTo(tr.pb.x, tr.pb.y);
+        ctx3d.lineTo(tr.pc.x, tr.pc.y);
+        ctx3d.closePath();
+        if (tr.kind === "nose") {
+          const alpha = 0.16 + 0.24 * tr.lambert;
+          ctx3d.fillStyle = `rgba(245, 158, 11, ${alpha.toFixed(3)})`;
+          ctx3d.fill();
+          ctx3d.strokeStyle = "rgba(251, 191, 36, 0.72)";
+          ctx3d.lineWidth = 1.0;
+          ctx3d.stroke();
+        } else {
+          const alpha = 0.06 + 0.14 * tr.lambert;
+          ctx3d.fillStyle = `rgba(56, 189, 248, ${alpha.toFixed(3)})`;
+          ctx3d.fill();
+          ctx3d.strokeStyle = "rgba(125, 211, 252, 0.24)";
+          ctx3d.lineWidth = 0.8;
+          ctx3d.stroke();
+        }
+      }
+
+      // 3D Skeleton Edges
+      SCHEMA.skeletons.forEach(sk => {
+        sk.edges.forEach(([a, b]) => {
+          const pa = ptsMap[a], pb = ptsMap[b];
+          const p3a = vertsProj[a], p3b = vertsProj[b];
+          if (!pa || !pb || !p3a || !p3b) return;
+          if (!isPointDisplayed(pa, showOutside) || !isPointDisplayed(pb, showOutside)) return;
+          const hasOut = !!(pa.outside || pb.outside);
+          const hasOcc = !hasOut && !!(pa.occluded || pb.occluded);
+          const edgeSpot = activeFilter === "all" || matchesSpotlight(pa) || matchesSpotlight(pb);
+          ctx3d.save();
+          if (!edgeSpot) ctx3d.globalAlpha = 0.16;
+          else if (hasOut) ctx3d.globalAlpha = 0.50;
+          if (hasOut) {
+            ctx3d.strokeStyle = "#f43f5e";
+            ctx3d.lineWidth = 1.5;
+            ctx3d.setLineDash([2, 4]);
+          } else if (hasOcc) {
+            ctx3d.strokeStyle = colorMode === "state" ? "#f59e0b" : sk.stroke_hex;
+            ctx3d.lineWidth = 2.0;
+            ctx3d.setLineDash([6, 4]);
+          } else {
+            ctx3d.strokeStyle = sk.stroke_hex;
+            ctx3d.lineWidth = 2.1;
+          }
+          ctx3d.beginPath();
+          ctx3d.moveTo(p3a.x, p3a.y);
+          ctx3d.lineTo(p3b.x, p3b.y);
+          ctx3d.stroke();
+          ctx3d.restore();
+        });
+      });
+
+      // 3D Camera Line-of-Sight Raycasting Rays (for far-side eye/brow + any occluded point)
+      if (showRays) {
+        const targetIds = new Set(
+          f3d.far_side === "l"
+            ? [0, 1, 2, 3, 4, 14, 15, 16, 17, 18, 19, 20, 21]
+            : [5, 6, 7, 8, 9, 22, 23, 24, 25, 26, 27, 28, 29]
+        );
+        for (let pid = 0; pid < 50; pid++) {
+          if (f3d.point_nose_occluded[pid]) targetIds.add(pid);
+        }
+        const noseTipZ = vertsRaw[13] ? vertsRaw[13][2] : 0.35;
+        targetIds.forEach(pid => {
+          const v = vertsRaw[pid];
+          const p3 = vertsProj[pid];
+          if (!v || !p3) return;
+          const isHit = !!f3d.point_nose_occluded[pid];
+          const rayD = f3d.point_nose_ray_depth[pid] || 0.0;
+          if (isHit) {
+            const hRaw = [v[0], v[1], v[2] + rayD];
+            const eRaw = [v[0], v[1], Math.max(hRaw[2] + 0.35, noseTipZ + 0.25)];
+            const hProj = project3DPoint(rotate3DVector(hRaw, orbitYaw, orbitPitch), cx, cy, scalePx);
+            const eProj = project3DPoint(rotate3DVector(eRaw, orbitYaw, orbitPitch), cx, cy, scalePx);
+            ctx3d.save();
+            ctx3d.strokeStyle = "#f97316";
+            ctx3d.lineWidth = 2.0;
+            ctx3d.beginPath();
+            ctx3d.moveTo(p3.x, p3.y);
+            ctx3d.lineTo(hProj.x, hProj.y);
+            ctx3d.stroke();
+
+            ctx3d.setLineDash([4, 3]);
+            ctx3d.strokeStyle = "rgba(251, 146, 60, 0.50)";
+            ctx3d.beginPath();
+            ctx3d.moveTo(hProj.x, hProj.y);
+            ctx3d.lineTo(eProj.x, eProj.y);
+            ctx3d.stroke();
+
+            // Ray hit X marker on nasal pyramid
+            ctx3d.setLineDash([]);
+            ctx3d.strokeStyle = "#fef08a";
+            ctx3d.lineWidth = 2.0;
+            ctx3d.beginPath();
+            ctx3d.moveTo(hProj.x - 4, hProj.y - 4);
+            ctx3d.lineTo(hProj.x + 4, hProj.y + 4);
+            ctx3d.moveTo(hProj.x + 4, hProj.y - 4);
+            ctx3d.lineTo(hProj.x - 4, hProj.y + 4);
+            ctx3d.stroke();
+            ctx3d.restore();
+          } else {
+            const eRaw = [v[0], v[1], v[2] + 0.62];
+            const eProj = project3DPoint(rotate3DVector(eRaw, orbitYaw, orbitPitch), cx, cy, scalePx);
+            ctx3d.save();
+            ctx3d.strokeStyle = "rgba(34, 197, 94, 0.68)";
+            ctx3d.lineWidth = 1.4;
+            ctx3d.setLineDash([4, 3]);
+            ctx3d.beginPath();
+            ctx3d.moveTo(p3.x, p3.y);
+            ctx3d.lineTo(eProj.x, eProj.y);
+            ctx3d.stroke();
+            ctx3d.restore();
+          }
+        });
+      }
+
+      // 3D Outward Surface Normals n_i
+      if (showNormals) {
+        for (let pid = 0; pid < 50; pid++) {
+          const pt = ptsMap[pid];
+          const v = vertsRaw[pid];
+          const n = normalsRaw[pid];
+          const p3 = vertsProj[pid];
+          if (!pt || !v || !n || !p3 || !isPointDisplayed(pt, showOutside)) continue;
+          const cosV = f3d.point_cos_view[pid];
+          const nEndRaw = [v[0] + n[0] * 0.22, v[1] + n[1] * 0.22, v[2] + n[2] * 0.22];
+          const nProj = project3DPoint(rotate3DVector(nEndRaw, orbitYaw, orbitPitch), cx, cy, scalePx);
+          ctx3d.save();
+          ctx3d.strokeStyle = cosV >= 0.25 ? "rgba(74, 222, 128, 0.85)" : (cosV >= 0 ? "rgba(251, 191, 36, 0.85)" : "rgba(251, 113, 133, 0.85)");
+          ctx3d.lineWidth = 1.6;
+          ctx3d.beginPath();
+          ctx3d.moveTo(p3.x, p3.y);
+          ctx3d.lineTo(nProj.x, nProj.y);
+          ctx3d.stroke();
+          ctx3d.beginPath();
+          ctx3d.arc(nProj.x, nProj.y, 1.8, 0, Math.PI * 2);
+          ctx3d.fillStyle = ctx3d.strokeStyle;
+          ctx3d.fill();
+          ctx3d.restore();
+        }
+      }
+
+      // 50 Depth-sorted 3D Keypoints
+      const ptOrder = [];
+      for (let pid = 0; pid < 50; pid++) {
+        const pt = ptsMap[pid];
+        const p3 = vertsProj[pid];
+        if (!pt || !p3 || !isPointDisplayed(pt, showOutside)) continue;
+        ptOrder.push({ pt, sx: p3.x, sy: p3.y, z: p3.z });
+      }
+      ptOrder.sort((a, b) => a.z - b.z);
+      last3DProjectedPts = ptOrder;
+
+      for (const item of ptOrder) {
+        const { pt, sx, sy } = item;
+        const stKey = getPointStateKey(pt);
+        const stMeta = STATE_STYLE[stKey];
+        const isBeacon = pt.point_id === beaconPointId;
+        const isHot = pt.point_id === hoverPointId || pt.point_id === dragPointId || isBeacon;
+        const spotMatch = matchesSpotlight(pt) || isHot;
+        const r = isHot ? 6.0 : 4.6;
+
+        ctx3d.save();
+        if (!spotMatch) ctx3d.globalAlpha = 0.20;
+        else if (pt.outside) ctx3d.globalAlpha = 0.85;
+
+        if (isHot) {
+          ctx3d.beginPath();
+          ctx3d.arc(sx, sy, r + 4.2, 0, Math.PI * 2);
+          ctx3d.strokeStyle = "#38bdf8";
+          ctx3d.lineWidth = 2.0;
+          ctx3d.stroke();
+        }
+
+        let coreColor = stMeta.fill;
+        if (colorMode === "skeleton") coreColor = skelColorMap[pt.skeleton] || stMeta.fill;
+        else if (colorMode === "cvat") coreColor = SCHEMA.point_colors[pt.point_id] || stMeta.fill;
+
+        if (stKey === "outside") {
+          ctx3d.beginPath();
+          ctx3d.arc(sx, sy, r + 0.6, 0, Math.PI * 2);
+          ctx3d.fillStyle = "rgba(76, 5, 25, 0.72)";
+          ctx3d.fill();
+          ctx3d.setLineDash([2.5, 2]);
+          ctx3d.strokeStyle = "#f43f5e";
+          ctx3d.lineWidth = 1.5;
+          ctx3d.stroke();
+          ctx3d.setLineDash([]);
+          const cr = Math.max(3.0, r * 0.56);
+          ctx3d.beginPath();
+          ctx3d.moveTo(sx - cr, sy - cr); ctx3d.lineTo(sx + cr, sy + cr);
+          ctx3d.moveTo(sx + cr, sy - cr); ctx3d.lineTo(sx - cr, sy + cr);
+          ctx3d.strokeStyle = "#fda4af";
+          ctx3d.lineWidth = 1.6;
+          ctx3d.stroke();
+        } else if (stKey === "occluded") {
+          const d = r * 1.35;
+          ctx3d.beginPath();
+          ctx3d.moveTo(sx, sy - d);
+          ctx3d.lineTo(sx + d, sy);
+          ctx3d.lineTo(sx, sy + d);
+          ctx3d.lineTo(sx - d, sy);
+          ctx3d.closePath();
+          ctx3d.fillStyle = colorMode === "state" ? "#f59e0b" : coreColor;
+          ctx3d.fill();
+          ctx3d.strokeStyle = "#ffffff";
+          ctx3d.lineWidth = 1.8;
+          ctx3d.stroke();
+        } else {
+          ctx3d.beginPath();
+          ctx3d.arc(sx, sy, r + 1.5, 0, Math.PI * 2);
+          ctx3d.fillStyle = "#000000";
+          ctx3d.fill();
+          ctx3d.beginPath();
+          ctx3d.arc(sx, sy, r, 0, Math.PI * 2);
+          ctx3d.fillStyle = coreColor;
+          ctx3d.fill();
+        }
+
+        if (showIds || isHot) {
+          const labelTxt = `${pt.point_id}${stMeta.suffix}`;
+          ctx3d.font = "bold 10.5px Segoe UI, sans-serif";
+          ctx3d.lineWidth = 2.8;
+          ctx3d.strokeStyle = "#000000";
+          ctx3d.strokeText(labelTxt, sx + 7, sy - 4);
+          ctx3d.fillStyle = stMeta.text;
+          ctx3d.fillText(labelTxt, sx + 7, sy - 4);
+        }
+        ctx3d.restore();
+      }
+
+      // Cabin camera direction HUD triad in bottom-left above bar
+      const camVec = rotate3DVector([0, 0, 1], orbitYaw, orbitPitch);
+      const ax = 48, ay = H - 56;
+      ctx3d.save();
+      ctx3d.beginPath();
+      ctx3d.arc(ax, ay, 18, 0, Math.PI * 2);
+      ctx3d.fillStyle = "rgba(15, 23, 42, 0.78)";
+      ctx3d.fill();
+      ctx3d.strokeStyle = "#334155";
+      ctx3d.lineWidth = 1.2;
+      ctx3d.stroke();
+      ctx3d.beginPath();
+      ctx3d.moveTo(ax, ay);
+      ctx3d.lineTo(ax + camVec[0] * 16, ay + camVec[1] * 16);
+      ctx3d.strokeStyle = "#38bdf8";
+      ctx3d.lineWidth = 2.2;
+      ctx3d.stroke();
+      ctx3d.beginPath();
+      ctx3d.arc(ax + camVec[0] * 16, ay + camVec[1] * 16, 3, 0, Math.PI * 2);
+      ctx3d.fillStyle = "#38bdf8";
+      ctx3d.fill();
+      ctx3d.font = "600 10px Segoe UI, sans-serif";
+      ctx3d.fillStyle = "#cbd5e1";
+      ctx3d.fillText("📷 Camera", ax + 24, ay + 4);
+      ctx3d.restore();
+    }
+
+    canvas3d.addEventListener("contextmenu", e => e.preventDefault());
+
+    canvas3d.addEventListener("wheel", e => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      orbitZoom = Math.max(0.45, Math.min(2.8, orbitZoom * factor));
+      draw3DCanvas();
+    }, { passive: false });
+
+    canvas3d.addEventListener("mousedown", async e => {
+      const rect = canvas3d.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      if (e.button === 2) {
+        const hit = findNearest3DPoint(sx, sy);
+        if (hit) {
+          cyclePointState(hit);
+          hoverPointId = hit.point_id;
+          last3DMouse = { sx, sy };
+          refreshAfterStateChange();
+          await saveCurrentEdits();
+        }
+        return;
+      }
+      if (e.button === 0) {
+        if (turntableActive) toggle3DTurntable();
+        isOrbiting3D = true;
+        orbitDragLast = { x: sx, y: sy };
+        canvas3d.classList.add("is-orbiting");
+        document.querySelectorAll(".preset3d-btn").forEach(b => b.classList.remove("active-preset"));
+      }
+    });
+
+    canvas3d.addEventListener("mousemove", e => {
+      const rect = canvas3d.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      last3DMouse = { sx, sy };
+
+      if (isOrbiting3D) {
+        const dx = sx - orbitDragLast.x;
+        const dy = sy - orbitDragLast.y;
+        orbitDragLast = { x: sx, y: sy };
+        orbitYaw = ((orbitYaw + dx * 0.55 + 180) % 360) - 180;
+        orbitPitch = Math.max(-88, Math.min(88, orbitPitch - dy * 0.48));
+        hide3DTooltip();
+        draw3DCanvas();
+        return;
+      }
+
+      const hit = findNearest3DPoint(sx, sy);
+      const nextHover = hit ? hit.point_id : null;
+      if (nextHover !== hoverPointId) {
+        hoverPointId = nextHover;
+        drawCanvas();
+        draw3DCanvas();
+        syncHoverHighlightUI();
+      } else if (hit) {
+        const pred = getCurrentPred();
+        if (pred && pred.face_3d) render3DTooltip(hit, pred.face_3d, sx, sy);
+      }
+    });
+
+    canvas3d.addEventListener("mouseleave", () => {
+      last3DMouse = null;
+      if (!isOrbiting3D && hoverPointId !== null) {
+        hoverPointId = null;
+        drawCanvas();
+        draw3DCanvas();
+      }
+      hide3DTooltip();
+      syncHoverHighlightUI();
     });
 
     window.addEventListener("keydown", async e => {
@@ -1889,6 +2920,7 @@
       updateLegendBar();
       updateRightPanel();
       drawCanvas();
+      draw3DCanvas();
       setStatus("Đã xóa toàn bộ danh sách ảnh trong phiên.", "#93c5fd");
     }
 
@@ -1906,6 +2938,7 @@
         use_two_pass: document.getElementById("chkTwoPass").checked,
         use_roll_align: document.getElementById("chkRollAlign").checked,
         use_photo_preprocess: document.getElementById("chkPhotoPreprocess").checked,
+        visibility_mode: document.getElementById("visibilityMode").value || "auto",
       };
     }
 
@@ -1937,7 +2970,7 @@
     async function predictBatch() {
       if (!IMAGES.length) return;
       const cfg = getPredictConfig();
-      setStatus(`Đang chạy batch Mức 2 (${cfg.detector_mode} + ${cfg.ensemble_mode}) cho ${IMAGES.length} ảnh...`);
+      setStatus(`Đang chạy batch (${cfg.detector_mode} + ${cfg.ensemble_mode}) cho ${IMAGES.length} ảnh...`);
       document.getElementById("btnRunBatch").disabled = true;
       try {
         const res = await fetch("/api/predict-batch", {
@@ -1985,6 +3018,100 @@
       const savedDir = res.headers.get("X-Export-Dir");
       setStatus(`Đã xuất annotations.xml${savedDir ? " (và lưu tại " + savedDir + ")" : ""}!`, "#86efac");
     }
+
+    let activeRuleTab = "rules";
+
+    function openRuleCatalogModal() {
+      const modal = document.getElementById("ruleCatalogModal");
+      if (!modal) return;
+      modal.classList.add("open");
+      renderRuleCatalogBody();
+    }
+
+    function closeRuleCatalogModal() {
+      const modal = document.getElementById("ruleCatalogModal");
+      if (modal) modal.classList.remove("open");
+    }
+
+    function switchRuleTab(tab) {
+      activeRuleTab = tab || "rules";
+      document.querySelectorAll(".modal-tab-btn[data-rule-tab]").forEach(b => {
+        b.classList.toggle("active", b.dataset.ruleTab === activeRuleTab);
+      });
+      renderRuleCatalogBody();
+    }
+
+    function renderRuleCatalogBody() {
+      const body = document.getElementById("ruleCatalogBody");
+      if (!body) return;
+      const cat = SCHEMA && SCHEMA.guideline_rules;
+      if (!cat) {
+        body.innerHTML = `<div class="hint">Không có dữ liệu Thư viện Luật từ /api/schema.</div>`;
+        return;
+      }
+      const q = (document.getElementById("ruleSearchInput")?.value || "").trim().toLowerCase();
+      const matchQuery = (...fields) => !q || fields.some(f => String(f || "").toLowerCase().includes(q));
+
+      if (activeRuleTab === "rules") {
+        const list = (cat.rules || []).filter(r =>
+          matchQuery(r.code, r.title, r.guideline_ref, r.default_state, r.condition_summary, r.case_example)
+        );
+        body.innerHTML = list.length ? list.map(r => `
+          <div class="rule-item">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px;">
+              <span><span class="tt-rule-code">${escapeHtml(r.code)}</span> <b style="color:#f8fafc;">${escapeHtml(r.title)}</b></span>
+              <span class="hint">${escapeHtml(r.guideline_ref)} · <b>${escapeHtml(r.default_state.toUpperCase())}</b></span>
+            </div>
+            <div style="color:#cbd5e1; margin-bottom:4px;"><b>Điều kiện:</b> ${escapeHtml(r.condition_summary)}</div>
+            <div style="color:#93c5fd; font-size:12px;"><b>Case mẫu:</b> ${escapeHtml(r.case_example)}</div>
+          </div>
+        `).join("") : `<div class="hint">Không tìm thấy luật nào khớp từ khóa.</div>`;
+      } else if (activeRuleTab === "table31") {
+        const rows = (cat.table31 || []).filter(t => matchQuery(t.skeleton, t.label, t.ids));
+        body.innerHTML = `
+          <div class="hint" style="margin-bottom:8px;">Theo Bảng 3.1: mỗi skeleton phải đạt số điểm Visible ≥ ngưỡng tối thiểu mới giữ cấu trúc; nếu không đủ ngưỡng và mất dấu hoàn toàn thì chuyển toàn bộ skeleton sang <b>Outside=1</b>. Ngoài ra <b>moingoai</b> và <b>moitrong</b> luôn đồng bộ Outside.</div>
+          <table class="rule-table">
+            <thead>
+              <tr><th>Skeleton</th><th>Tên tiếng Việt</th><th>ID điểm</th><th>Tổng số điểm</th><th>Ngưỡng Visible tối thiểu</th></tr>
+            </thead>
+            <tbody>
+              ${rows.map(t => `
+                <tr>
+                  <td><b>${escapeHtml(t.skeleton)}</b></td>
+                  <td>${escapeHtml(t.label)}</td>
+                  <td><code>${escapeHtml(t.ids)}</code></td>
+                  <td>${t.total}</td>
+                  <td><b style="color:#86efac;">≥ ${t.min_visible} / ${t.total}</b></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `;
+      } else if (activeRuleTab === "cases") {
+        const cases = (cat.special_cases || []).filter(c => matchQuery(c.title, c.expected, c.note));
+        body.innerHTML = cases.length ? cases.map(c => `
+          <div class="rule-item">
+            <div style="font-weight:700; color:#f8fafc; margin-bottom:4px;">📌 ${escapeHtml(c.title)}</div>
+            <div style="color:#86efac; margin-bottom:4px;"><b>Kỳ vọng chuẩn VF-50:</b> ${escapeHtml(c.expected)}</div>
+            <div style="color:#94a3b8; font-size:12px;"><b>Lưu ý kỹ thuật:</b> ${escapeHtml(c.note)}</div>
+          </div>
+        `).join("") : `<div class="hint">Không tìm thấy case mẫu nào khớp từ khóa.</div>`;
+      } else {
+        const flags = (cat.qc_flags || []).filter(f => matchQuery(f.flag, f.meaning));
+        body.innerHTML = flags.length ? flags.map(f => `
+          <div class="rule-item">
+            <div style="font-weight:700; color:#fbbf24; margin-bottom:3px;">${escapeHtml(f.flag)}</div>
+            <div style="color:#cbd5e1;">${escapeHtml(f.meaning)}</div>
+          </div>
+        `).join("") : `<div class="hint">Không tìm thấy cờ QC nào khớp từ khóa.</div>`;
+      }
+    }
+
+    window.addEventListener("keydown", e => {
+      if (e.key === "Escape") {
+        closeRuleCatalogModal();
+      }
+    });
 
     function prevImage() {
       if (CURRENT_IDX > 0) selectImage(CURRENT_IDX - 1);

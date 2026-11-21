@@ -26,23 +26,27 @@ from .detector import (
     unrotate_bbox,
     unrotate_points,
 )
+from .face_parser import FaceParserEngine
 from .headpose_6drepnet import SixDRepNetEngine
 from .landmark_engine import EnsembleVF50Engine, VF50Engine
 from .scrfd_detector import SCRFDDetector
+from .star_engine import STAREngine
 from .tufa_engine import TUFAEngine
-from .vf50_rules import PointAnnotation, QCFlag, apply_vf50_rules
+from .vf50_rules import PointAnnotation, QCFlag, VALID_VISIBILITY_MODES, apply_vf50_rules
 from .vf50_schema import point_id_to_skeleton
 from .visualizer import render_preview
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
-VALID_ENSEMBLES = ("spiga_tufa", "spiga_only")
+VALID_ENSEMBLES = ("spiga_tufa_star", "spiga_tufa", "spiga_only")
 VALID_HEADPOSES = ("6drepnet", "spiga")
 
 _SCRFD_FILE = "scrfd_10g_bnkps.onnx"
 _YUNET_FILE = "face_detection_yunet_2023mar.onnx"
 _TUFA_WEIGHTS_FILE = "tufa_face_prompt_base.pth"
 _TUFA_SHAPE_FILE = "tufa_shape_98.npz"
+_STAR_WEIGHTS_FILE = "star_wflw.pkl"
 _SIXD_FILE = "6DRepNet_300W_LP_AFLW2000.pth"
+_FACE_PARSER_FILE = "bisenet_resnet34.onnx"
 
 
 def imread_unicode(path: str) -> Optional[np.ndarray]:
@@ -85,31 +89,49 @@ def resolve_default_weights(models_dir: str) -> str:
 
 
 def get_level2_capabilities(models_dir: str) -> Dict[str, Any]:
-    """Inspect installed Level 2 model artifacts inside models_dir."""
+    """Inspect installed Level 2/3 model artifacts inside models_dir."""
     has_scrfd = os.path.isfile(os.path.join(models_dir, _SCRFD_FILE))
     has_yunet = os.path.isfile(os.path.join(models_dir, _YUNET_FILE))
     has_tufa = (
         os.path.isfile(os.path.join(models_dir, _TUFA_WEIGHTS_FILE))
         and os.path.isfile(os.path.join(models_dir, _TUFA_SHAPE_FILE))
     )
+    has_star = os.path.isfile(os.path.join(models_dir, _STAR_WEIGHTS_FILE))
     has_6d = os.path.isfile(os.path.join(models_dir, _SIXD_FILE))
+    has_parser = os.path.isfile(os.path.join(models_dir, _FACE_PARSER_FILE))
 
     detectors: List[str] = []
     if has_scrfd:
         detectors.append("scrfd10g")
     if has_yunet:
         detectors.append("yunet")
-    ensembles = ["spiga_tufa", "spiga_only"] if has_tufa else ["spiga_only"]
+
+    ensembles: List[str] = []
+    if has_tufa and has_star:
+        ensembles.append("spiga_tufa_star")
+    if has_tufa:
+        ensembles.append("spiga_tufa")
+    ensembles.append("spiga_only")
+
+    default_ensemble = (
+        "spiga_tufa_star"
+        if (has_tufa and has_star)
+        else ("spiga_tufa" if has_tufa else "spiga_only")
+    )
     headposes = ["6drepnet", "spiga"] if has_6d else ["spiga"]
 
     return {
         "available_detectors": detectors or ["yunet"],
         "default_detector": "scrfd10g" if has_scrfd else "yunet",
         "available_ensembles": ensembles,
-        "default_ensemble": "spiga_tufa" if has_tufa else "spiga_only",
+        "default_ensemble": default_ensemble,
         "available_headposes": headposes,
         "default_headpose": "6drepnet" if has_6d else "spiga",
         "level2_ready": bool(has_scrfd and has_tufa and has_6d),
+        "star_ready": bool(has_star),
+        "face_parser_ready": bool(has_parser),
+        "available_visibility_modes": list(VALID_VISIBILITY_MODES),
+        "default_visibility_mode": "auto",
     }
 
 
@@ -121,6 +143,8 @@ def get_level_presets(models_dir: str) -> Dict[str, Any]:
     has_ir_spiga = "spiga_wflw_ir_vf50.pt" in weights
     has_yunet = "yunet" in caps["available_detectors"]
     has_l2 = bool(caps["level2_ready"])
+    best_ens = "spiga_tufa_star" if (has_l2 and caps["star_ready"]) else "spiga_tufa"
+    ens_label = "TUFA + STAR" if best_ens == "spiga_tufa_star" else "TUFA"
     fallback_w = resolve_default_weights(models_dir)
 
     presets = [
@@ -145,11 +169,11 @@ def get_level_presets(models_dir: str) -> Dict[str, Any]:
             "id": "level2",
             "label": "Mức 2",
             "title": "Mạnh nhất Pretrained",
-            "description": "SCRFD-10G + SPIGA gốc + TUFA + 6DRepNet + Flip TTA & 2-Pass",
+            "description": f"SCRFD-10G + SPIGA gốc + {ens_label} + 6DRepNet + Flip TTA & 2-Pass",
             "available": bool(has_l2 and has_base_spiga),
             "config": {
                 "detector_mode": "scrfd10g",
-                "ensemble_mode": "spiga_tufa",
+                "ensemble_mode": best_ens,
                 "weights_name": "spiga_wflw.pt" if has_base_spiga else fallback_w,
                 "headpose_mode": "6drepnet",
                 "use_tta": True,
@@ -162,11 +186,11 @@ def get_level_presets(models_dir: str) -> Dict[str, Any]:
             "id": "level3",
             "label": "Mức 3 ★",
             "title": "Tối ưu Cabin IR (Mặc định)",
-            "description": "SCRFD-10G + SPIGA-IR Fine-tuned + TUFA + 6DRepNet + Flip TTA & 2-Pass",
+            "description": f"SCRFD-10G + SPIGA-IR Fine-tuned + {ens_label} + 6DRepNet + Flip TTA & 2-Pass",
             "available": bool(has_l2 and has_ir_spiga),
             "config": {
                 "detector_mode": "scrfd10g",
-                "ensemble_mode": "spiga_tufa",
+                "ensemble_mode": best_ens,
                 "weights_name": "spiga_wflw_ir_vf50.pt" if has_ir_spiga else fallback_w,
                 "headpose_mode": "6drepnet",
                 "use_tta": True,
@@ -196,7 +220,10 @@ class VF50Pipeline:
         use_two_pass: bool = True,
         use_roll_align: bool = True,
         use_photo_preprocess: bool = True,
+        visibility_mode: str = "auto",
     ) -> None:
+        if visibility_mode not in VALID_VISIBILITY_MODES:
+            raise ValueError(f"Unsupported visibility_mode: {visibility_mode!r}")
         self.models_dir = models_dir
         self.device = device
         self.det_score_threshold = det_score_threshold
@@ -204,6 +231,7 @@ class VF50Pipeline:
         self.use_two_pass = use_two_pass
         self.use_roll_align = use_roll_align
         self.use_photo_preprocess = use_photo_preprocess
+        self.visibility_mode = visibility_mode
 
         caps = get_level2_capabilities(models_dir)
         self.default_detector_mode = detector_mode or caps["default_detector"]
@@ -223,24 +251,32 @@ class VF50Pipeline:
         self.detector = FaceDetector(yunet_path, score_threshold=det_score_threshold)
         self._scrfd_detector: Optional[SCRFDDetector] = None
         self._tufa_engine: Optional[TUFAEngine] = None
+        self._star_engine: Optional[STAREngine] = None
         self._headpose_engine: Optional[SixDRepNetEngine] = None
+        self._face_parser: Optional[FaceParserEngine] = None
 
         self.engine = VF50Engine(
             weights_dir=models_dir, device=device, weights_name=selected
         )
 
-        # Eagerly initialize requested Level 2 components when available
+        # Eagerly initialize requested Level 2/3 components when available
         if self.default_detector_mode == "scrfd10g" and os.path.isfile(os.path.join(models_dir, _SCRFD_FILE)):
             self._get_detector("scrfd10g")
-        if self.default_ensemble_mode == "spiga_tufa" and "spiga_tufa" in caps["available_ensembles"]:
+        if self.default_ensemble_mode in ("spiga_tufa", "spiga_tufa_star") and "spiga_tufa" in caps["available_ensembles"]:
             self._get_tufa()
+        if self.default_ensemble_mode == "spiga_tufa_star" and "spiga_tufa_star" in caps["available_ensembles"]:
+            self._get_star()
         if self.default_headpose_mode == "6drepnet" and "6drepnet" in caps["available_headposes"]:
             self._get_headpose()
+        if self.visibility_mode == "auto" and caps["face_parser_ready"]:
+            self._get_face_parser()
 
         self.ensemble = EnsembleVF50Engine(
             spiga_engine=self.engine,
             tufa_engine=self._tufa_engine,
             headpose_engine=self._headpose_engine,
+            star_engine=self._star_engine,
+            face_parser=self._face_parser,
         )
 
     def _get_detector(self, mode: str) -> BaseFaceDetector:
@@ -268,6 +304,16 @@ class VF50Pipeline:
             return self._tufa_engine
         return None
 
+    def _get_star(self) -> Optional[STAREngine]:
+        s_path = os.path.join(self.models_dir, _STAR_WEIGHTS_FILE)
+        if os.path.isfile(s_path):
+            if self._star_engine is None:
+                self._star_engine = STAREngine(s_path, device=self.device)
+                if hasattr(self, "ensemble"):
+                    self.ensemble.star_engine = self._star_engine
+            return self._star_engine
+        return None
+
     def _get_headpose(self) -> Optional[SixDRepNetEngine]:
         r_path = os.path.join(self.models_dir, _SIXD_FILE)
         if os.path.isfile(r_path):
@@ -278,8 +324,18 @@ class VF50Pipeline:
             return self._headpose_engine
         return None
 
+    def _get_face_parser(self) -> Optional[FaceParserEngine]:
+        p_path = os.path.join(self.models_dir, _FACE_PARSER_FILE)
+        if os.path.isfile(p_path):
+            if self._face_parser is None:
+                self._face_parser = FaceParserEngine(p_path)
+                if hasattr(self, "ensemble"):
+                    self.ensemble.face_parser = self._face_parser
+            return self._face_parser
+        return None
+
     def reload_spiga_weights(self, weights_name: str) -> None:
-        """Hot-swap SPIGA weights without unloading TUFA, 6DRepNet, or SCRFD."""
+        """Hot-swap SPIGA weights without unloading TUFA, STAR, 6DRepNet, or SCRFD."""
         if weights_name == self.weights_name:
             return
         spiga_path = os.path.join(self.models_dir, weights_name)
@@ -302,9 +358,14 @@ class VF50Pipeline:
         if getattr(self, "_tufa_engine", None) is not None:
             self._tufa_engine.close()
             self._tufa_engine = None
+        if getattr(self, "_star_engine", None) is not None:
+            self._star_engine.close()
+            self._star_engine = None
         if getattr(self, "_headpose_engine", None) is not None:
             self._headpose_engine.close()
             self._headpose_engine = None
+        if getattr(self, "_face_parser", None) is not None:
+            self._face_parser = None
         gc.collect()
         if self.device == "cuda" and torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -375,6 +436,7 @@ class VF50Pipeline:
         use_two_pass: Optional[bool] = None,
         use_roll_align: Optional[bool] = None,
         use_photo_preprocess: Optional[bool] = None,
+        visibility_mode: Optional[str] = None,
     ) -> ImagePrediction:
         """Run full pre-labeling pipeline on a single image."""
         orig_img = imread_unicode(image_path)
@@ -387,6 +449,7 @@ class VF50Pipeline:
         det_mode = detector_mode or self.default_detector_mode
         ens_mode = ensemble_mode or self.default_ensemble_mode
         hp_mode = headpose_mode or self.default_headpose_mode
+        vis_mode = visibility_mode or self.visibility_mode
         run_tta = self.use_tta if use_tta is None else bool(use_tta)
         run_two_pass = self.use_two_pass if use_two_pass is None else bool(use_two_pass)
         run_roll_align = self.use_roll_align if use_roll_align is None else bool(use_roll_align)
@@ -398,14 +461,21 @@ class VF50Pipeline:
             raise ValueError(f"Unsupported ensemble_mode: {ens_mode}")
         if hp_mode not in VALID_HEADPOSES:
             raise ValueError(f"Unsupported headpose_mode: {hp_mode}")
+        if vis_mode not in VALID_VISIBILITY_MODES:
+            raise ValueError(f"Unsupported visibility_mode: {vis_mode}")
 
         detector = self._get_detector(det_mode)
         active_det_name = "scrfd10g" if isinstance(detector, SCRFDDetector) else "yunet"
 
-        if ens_mode == "spiga_tufa":
+        if ens_mode == "spiga_tufa_star":
+            self._get_tufa()
+            self._get_star()
+        elif ens_mode == "spiga_tufa":
             self._get_tufa()
         if hp_mode == "6drepnet":
             self._get_headpose()
+        if vis_mode == "auto":
+            self._get_face_parser()
 
         det_landmarks5: Optional[List[List[float]]] = None
         if manual_bbox is not None:
@@ -486,11 +556,13 @@ class VF50Pipeline:
             bbox_rot,
             use_tta=run_tta,
             use_two_pass=run_two_pass,
-            use_ensemble=(ens_mode == "spiga_tufa"),
+            use_ensemble=(ens_mode in ("spiga_tufa", "spiga_tufa_star")),
             use_6drepnet=(hp_mode == "6drepnet"),
             landmarks5=det_landmarks5,
             use_roll_align=run_roll_align,
             use_photo_preprocess=run_photo_preprocess,
+            use_star=(ens_mode == "spiga_tufa_star"),
+            run_face_parsing=(vis_mode == "auto"),
         )
 
         rule_out = apply_vf50_rules(
@@ -508,6 +580,9 @@ class VF50Pipeline:
             yaw_outside=yaw_outside,
             point_confidences=lm_pred.confidence_50,
             point_uncertainties=lm_pred.uncertainty_px,
+            pitch=lm_pred.pitch,
+            visibility_mode=vis_mode,
+            parsing_evidence=lm_pred.parsing_evidence,
         )
 
         # Unrotate 50 coordinates and bbox back to the original CVAT image frame
@@ -544,6 +619,9 @@ class VF50Pipeline:
             mean_confidence=mean_conf,
             max_uncertainty_px=max_unc,
             preprocess_applied=lm_pred.preprocess_applied,
+            visibility_mode_used=rule_out.visibility_mode_used,
+            visibility_summary=rule_out.visibility_summary,
+            face_3d=rule_out.face_3d_evidence.to_dict() if rule_out.face_3d_evidence is not None else None,
         )
 
     def run_batch(
@@ -564,6 +642,7 @@ class VF50Pipeline:
         use_two_pass: Optional[bool] = None,
         use_roll_align: Optional[bool] = None,
         use_photo_preprocess: Optional[bool] = None,
+        visibility_mode: Optional[str] = None,
     ) -> List[ImagePrediction]:
         """Run pre-labeling across a file or folder and write XML, JSON, CSV, and optional previews."""
         images = collect_images(input_path)
@@ -592,6 +671,7 @@ class VF50Pipeline:
                 use_two_pass=use_two_pass,
                 use_roll_align=use_roll_align,
                 use_photo_preprocess=use_photo_preprocess,
+                visibility_mode=visibility_mode,
             )
             predictions.append(pred)
 

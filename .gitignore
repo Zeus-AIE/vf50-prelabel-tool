@@ -37,6 +37,7 @@ scratch/
 # Large Model Checkpoints (>100MB, downloaded via scripts/download_all_models.py)
 models/*.pt
 models/*.pth
+models/*.pkl
 models/*.onnx
 models/*.tar.gz
 models/*.zip
@@ -45,6 +46,7 @@ models/*.zip
 !models/tufa_shape_98.npz
 !models/ir_finetune_report.json
 !models/level2_benchmark.json
+!models/level3_star_benchmark.json
 !models/train_progress.json
 
 # IDE and OS

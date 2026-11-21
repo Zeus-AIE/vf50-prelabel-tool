@@ -37,6 +37,9 @@ class ImagePrediction:
     mean_confidence: float = 1.0
     max_uncertainty_px: float = 0.0
     preprocess_applied: str = "none"
+    visibility_mode_used: str = "auto"
+    visibility_summary: str = ""
+    face_3d: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -59,6 +62,9 @@ class ImagePrediction:
             "mean_confidence": round(self.mean_confidence, 4),
             "max_uncertainty_px": round(self.max_uncertainty_px, 2),
             "preprocess_applied": self.preprocess_applied,
+            "visibility_mode_used": self.visibility_mode_used,
+            "visibility_summary": self.visibility_summary,
+            "face_3d": self.face_3d,
             "points": [asdict(p) for p in self.points],
             "qc_flags": [asdict(f) for f in self.qc_flags],
         }
@@ -85,6 +91,9 @@ class ImagePrediction:
             mean_confidence=float(data.get("mean_confidence", 1.0)),
             max_uncertainty_px=float(data.get("max_uncertainty_px", 0.0)),
             preprocess_applied=data.get("preprocess_applied", "none"),
+            visibility_mode_used=data.get("visibility_mode_used", "auto"),
+            visibility_summary=data.get("visibility_summary", ""),
+            face_3d=data.get("face_3d"),
             points=[PointAnnotation(**p) for p in data["points"]],
             qc_flags=[QCFlag(**f) for f in data.get("qc_flags", [])],
         )

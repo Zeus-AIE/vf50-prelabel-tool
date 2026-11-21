@@ -26,6 +26,8 @@ from .cvat_exporter import (
     export_qc_csv,
 )
 from .detector import VALID_DETECTORS, VALID_DRIVER_SIDES, VALID_ROTATIONS
+from .face_3d_occluder import analyze_3d_occlusion
+from .vf50_guideline_catalog import get_guideline_catalog_dict
 from .pipeline import (
     IMAGE_EXTS,
     VALID_ENSEMBLES,
@@ -38,7 +40,14 @@ from .pipeline import (
     list_available_weights,
     resolve_default_weights,
 )
-from .vf50_rules import PointAnnotation, revalidate_prediction_qc
+from .vf50_rules import (
+    PointAnnotation,
+    VALID_VISIBILITY_MODES,
+    _compute_face_frame,
+    _to_face_upright,
+    enforce_topology,
+    revalidate_prediction_qc,
+)
 from .vf50_schema import POINT_COLORS_HEX, SKELETON_SPECS, get_skeleton_edges
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -122,6 +131,7 @@ class PredictRequest(BaseModel):
     use_two_pass: Optional[bool] = None
     use_roll_align: Optional[bool] = None
     use_photo_preprocess: Optional[bool] = None
+    visibility_mode: str = "auto"
 
 
 class PredictBatchRequest(BaseModel):
@@ -137,6 +147,7 @@ class PredictBatchRequest(BaseModel):
     use_two_pass: Optional[bool] = None
     use_roll_align: Optional[bool] = None
     use_photo_preprocess: Optional[bool] = None
+    visibility_mode: str = "auto"
 
 
 class PointUpdateItem(BaseModel):
@@ -192,6 +203,8 @@ def get_schema() -> Dict[str, Any]:
         "driver_sides": list(VALID_DRIVER_SIDES),
         "available_weights": list_available_weights(MODELS_DIR),
         "default_weights": resolve_default_weights(MODELS_DIR),
+        "face_3d_ready": True,
+        "guideline_rules": get_guideline_catalog_dict(),
         **caps,
         **presets,
     }
@@ -349,6 +362,7 @@ def _validate_mode_options(
     detector_mode: Optional[str],
     ensemble_mode: Optional[str],
     headpose_mode: Optional[str],
+    visibility_mode: Optional[str] = None,
 ) -> None:
     if detector_mode is not None and detector_mode not in VALID_DETECTORS:
         raise HTTPException(status_code=400, detail=f"detector_mode không hợp lệ: {detector_mode}")
@@ -356,11 +370,13 @@ def _validate_mode_options(
         raise HTTPException(status_code=400, detail=f"ensemble_mode không hợp lệ: {ensemble_mode}")
     if headpose_mode is not None and headpose_mode not in VALID_HEADPOSES:
         raise HTTPException(status_code=400, detail=f"headpose_mode không hợp lệ: {headpose_mode}")
+    if visibility_mode is not None and visibility_mode not in VALID_VISIBILITY_MODES:
+        raise HTTPException(status_code=400, detail=f"visibility_mode không hợp lệ: {visibility_mode}")
 
 
 @app.post("/api/predict")
 def predict_single(req: PredictRequest) -> Dict[str, Any]:
-    _validate_mode_options(req.detector_mode, req.ensemble_mode, req.headpose_mode)
+    _validate_mode_options(req.detector_mode, req.ensemble_mode, req.headpose_mode, req.visibility_mode)
     item = SESSION.get_image(req.image_id)
     pipeline = SESSION.get_pipeline(weights_name=req.weights_name)
     pred = pipeline.predict_image(
@@ -378,6 +394,7 @@ def predict_single(req: PredictRequest) -> Dict[str, Any]:
         use_two_pass=req.use_two_pass,
         use_roll_align=req.use_roll_align,
         use_photo_preprocess=req.use_photo_preprocess,
+        visibility_mode=req.visibility_mode,
     )
     item.prediction = pred
     return _serialize_session_item(item)
@@ -385,7 +402,7 @@ def predict_single(req: PredictRequest) -> Dict[str, Any]:
 
 @app.post("/api/predict-batch")
 def predict_batch(req: PredictBatchRequest) -> Dict[str, Any]:
-    _validate_mode_options(req.detector_mode, req.ensemble_mode, req.headpose_mode)
+    _validate_mode_options(req.detector_mode, req.ensemble_mode, req.headpose_mode, req.visibility_mode)
     if not SESSION.images:
         raise HTTPException(status_code=400, detail="Chưa có ảnh nào được nạp vào phiên làm việc")
     pipeline = SESSION.get_pipeline(weights_name=req.weights_name)
@@ -404,6 +421,7 @@ def predict_batch(req: PredictBatchRequest) -> Dict[str, Any]:
             use_two_pass=req.use_two_pass,
             use_roll_align=req.use_roll_align,
             use_photo_preprocess=req.use_photo_preprocess,
+            visibility_mode=req.visibility_mode,
         )
     detected = sum(1 for it in SESSION.images if it.prediction and it.prediction.detected)
     return {
@@ -423,12 +441,42 @@ def update_image_annotation(image_id: int, req: UpdateImageRequest) -> Dict[str,
     for upd in req.points:
         if upd.point_id in pts_map:
             pt = pts_map[upd.point_id]
-            pt.x = float(upd.x)
-            pt.y = float(upd.y)
-            pt.occluded = 1 if upd.occluded else 0
-            pt.outside = 1 if upd.outside else 0
-            if pt.outside == 1:
-                pt.occluded = 0
+            new_x = float(upd.x)
+            new_y = float(upd.y)
+            new_occ = 1 if upd.occluded else 0
+            new_out = 1 if upd.outside else 0
+            if new_out == 1:
+                new_occ = 0
+            state_changed = (pt.occluded != new_occ) or (pt.outside != new_out)
+            is_oob = (
+                new_x < 0.0
+                or new_x >= float(item.prediction.width)
+                or new_y < 0.0
+                or new_y >= float(item.prediction.height)
+            )
+            pt.x = new_x
+            pt.y = new_y
+            pt.occluded = new_occ
+            pt.outside = new_out
+            if is_oob and new_out == 1:
+                pt.rule_code = "R_PT_OUT_OF_FRAME"
+                pt.reason = (
+                    f"Tọa độ ({new_x:.1f}, {new_y:.1f}) nằm ngoài khung ảnh "
+                    f"{item.prediction.width}x{item.prediction.height}px -> Outside."
+                )
+            elif state_changed:
+                if new_out == 1:
+                    pt.rule_code = "R_MANUAL_EDIT"
+                    pt.reason = "Người gán nhãn đã chỉnh tay trạng thái thành Outside trên Web UI."
+                elif new_occ == 1:
+                    pt.rule_code = "R_MANUAL_EDIT"
+                    pt.reason = "Người gán nhãn đã chỉnh tay trạng thái thành Occluded trên Web UI."
+                else:
+                    pt.rule_code = "R_PT_VISIBLE"
+                    pt.reason = "Người gán nhãn đã chỉnh tay trạng thái thành Visible trên Web UI."
+            elif new_out == 0 and new_occ == 0 and not pt.reason:
+                pt.rule_code = "R_PT_VISIBLE"
+                pt.reason = f"Điểm {pt.skeleton} ở trạng thái Visible."
     if req.bbox_orig is not None:
         item.prediction.bbox_orig = [float(v) for v in req.bbox_orig]
         item.prediction.detected = True
@@ -442,6 +490,15 @@ def update_image_annotation(image_id: int, req: UpdateImageRequest) -> Dict[str,
         item.prediction.height,
         item.prediction.qc_flags,
     )
+    pts_arr = np.array([[p.x, p.y] for p in item.prediction.points], dtype=np.float64)
+    clean_pts, _ = enforce_topology(pts_arr)
+    center, roll_rad, _, _ = _compute_face_frame(clean_pts)
+    local_pts = _to_face_upright(clean_pts, center, roll_rad)
+    item.prediction.face_3d = analyze_3d_occlusion(
+        local_pts,
+        yaw_deg=item.prediction.yaw,
+        pitch_deg=item.prediction.pitch,
+    ).to_dict()
 
     return _serialize_session_item(item)
 
