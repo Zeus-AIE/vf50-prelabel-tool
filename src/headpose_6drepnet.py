@@ -108,20 +108,30 @@ class SixDRepNetEngine:
         self.model.eval()
 
     @staticmethod
-    def _crop_face(image_bgr: np.ndarray, bbox: Sequence[float], expand: float = 1.25) -> np.ndarray:
-        """Extract aspect-preserving padded square crop around bbox and resize to 224x224 RGB."""
+    def _crop_face(
+        image_bgr: np.ndarray,
+        bbox: Sequence[float],
+        expand: float = 1.25,
+        roll_deg: float = 0.0,
+    ) -> np.ndarray:
+        """Extract aspect-preserving padded square crop (de-rotated by eye roll) resized to 224x224 RGB."""
         bx, by, bw, bh = [float(v) for v in bbox]
         cx = bx + 0.5 * bw
         cy = by + 0.5 * bh
         side = max(bw, bh, 16.0) * expand
         scale = 224.0 / side
-        mat = np.array(
-            [
-                [scale, 0.0, 112.0 - scale * cx],
-                [0.0, scale, 112.0 - scale * cy],
-            ],
-            dtype=np.float32,
-        )
+        if abs(roll_deg) >= 12.0:
+            mat = cv2.getRotationMatrix2D((cx, cy), float(roll_deg), scale)
+            mat[0, 2] += 112.0 - cx
+            mat[1, 2] += 112.0 - cy
+        else:
+            mat = np.array(
+                [
+                    [scale, 0.0, 112.0 - scale * cx],
+                    [0.0, scale, 112.0 - scale * cy],
+                ],
+                dtype=np.float32,
+            )
         crop_bgr = cv2.warpAffine(
             image_bgr, mat, (224, 224), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE
         )
@@ -134,10 +144,14 @@ class SixDRepNetEngine:
 
     @torch.no_grad()
     def predict(
-        self, image_bgr: np.ndarray, bbox: Sequence[float], use_flip_tta: bool = True
+        self,
+        image_bgr: np.ndarray,
+        bbox: Sequence[float],
+        use_flip_tta: bool = True,
+        roll_deg: float = 0.0,
     ) -> Tuple[float, float, float]:
         """Return (yaw, pitch, roll) in degrees, matching SPIGA convention (+yaw = face turned right)."""
-        crop_rgb = self._crop_face(image_bgr, bbox, expand=1.25)
+        crop_rgb = self._crop_face(image_bgr, bbox, expand=1.25, roll_deg=roll_deg)
         if use_flip_tta:
             crop_flip = cv2.flip(crop_rgb, 1)
             batch_np = np.stack([self._to_tensor(crop_rgb), self._to_tensor(crop_flip)], axis=0)
@@ -158,6 +172,9 @@ class SixDRepNetEngine:
             pitch = float(euler_np[0, 0])
             yaw = float(euler_np[0, 1]) * self.yaw_sign
             roll = float(euler_np[0, 2])
+
+        if abs(roll_deg) >= 12.0:
+            roll = ((roll + float(roll_deg) + 180.0) % 360.0) - 180.0
         return yaw, pitch, roll
 
     def close(self) -> None:

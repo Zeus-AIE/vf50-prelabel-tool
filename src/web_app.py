@@ -38,7 +38,7 @@ from .pipeline import (
     list_available_weights,
     resolve_default_weights,
 )
-from .vf50_rules import PointAnnotation
+from .vf50_rules import PointAnnotation, revalidate_prediction_qc
 from .vf50_schema import POINT_COLORS_HEX, SKELETON_SPECS, get_skeleton_edges
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -424,6 +424,16 @@ def update_image_annotation(image_id: int, req: UpdateImageRequest) -> Dict[str,
     if req.bbox_orig is not None:
         item.prediction.bbox_orig = [float(v) for v in req.bbox_orig]
         item.prediction.detected = True
+
+    active_pts = [p for p in item.prediction.points if p.outside == 0] or item.prediction.points
+    item.prediction.mean_confidence = float(np.mean([p.confidence for p in active_pts]))
+    item.prediction.max_uncertainty_px = float(np.max([p.uncertainty_px for p in active_pts]))
+    item.prediction.qc_flags = revalidate_prediction_qc(
+        item.prediction.points,
+        item.prediction.width,
+        item.prediction.height,
+        item.prediction.qc_flags,
+    )
 
     return _serialize_session_item(item)
 

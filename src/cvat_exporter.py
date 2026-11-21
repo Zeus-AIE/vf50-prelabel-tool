@@ -104,13 +104,15 @@ def _build_skeleton_elements(pred: ImagePrediction) -> List[etree._Element]:
             # Keep coordinates safely bounded inside image canvas for CVAT import stability
             cx = max(0.0, min(float(pred.width), float(pt.x)))
             cy = max(0.0, min(float(pred.height), float(pt.y)))
+            out_val = 1 if int(pt.outside) else 0
+            occ_val = 0 if out_val else (1 if int(pt.occluded) else 0)
             etree.SubElement(
                 skel_el,
                 "points",
                 label=str(pid),
                 source="auto",
-                outside=str(int(pt.outside)),
-                occluded=str(int(pt.occluded)),
+                outside=str(out_val),
+                occluded=str(occ_val),
                 points=f"{cx:.2f},{cy:.2f}",
             )
         elements.append(skel_el)

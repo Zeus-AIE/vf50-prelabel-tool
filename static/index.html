@@ -1389,7 +1389,7 @@
       if (CURRENT_IDX < 0) return;
       const item = IMAGES[CURRENT_IDX];
       if (!item.prediction) return;
-      await fetch(`/api/update/${item.image_id}`, {
+      const res = await fetch(`/api/update/${item.image_id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1403,9 +1403,44 @@
           bbox_orig: item.prediction.bbox_orig,
         }),
       });
+      if (res.ok) {
+        const updated = await res.json();
+        IMAGES[CURRENT_IDX] = updated;
+      }
+      renderImageList();
       updateLegendBar();
       updateRightPanel();
       syncHoverHighlightUI();
+    }
+
+    async function convertInFrameOutsideToOccluded(skelName) {
+      const pred = getCurrentPred();
+      if (!pred || !pred.points) return;
+      const w = pred.width || (IMAGES[CURRENT_IDX] && IMAGES[CURRENT_IDX].width) || 99999;
+      const h = pred.height || (IMAGES[CURRENT_IDX] && IMAGES[CURRENT_IDX].height) || 99999;
+      pred.points.forEach(p => {
+        if (p.skeleton === skelName && p.outside && p.x >= 0 && p.x < w && p.y >= 0 && p.y < h) {
+          p.outside = 0;
+          p.occluded = 1;
+        }
+      });
+      refreshAfterStateChange();
+      await saveCurrentEdits();
+    }
+
+    async function fixOutOfBoundsPoints(skelName) {
+      const pred = getCurrentPred();
+      if (!pred || !pred.points) return;
+      const w = pred.width || (IMAGES[CURRENT_IDX] && IMAGES[CURRENT_IDX].width) || 99999;
+      const h = pred.height || (IMAGES[CURRENT_IDX] && IMAGES[CURRENT_IDX].height) || 99999;
+      pred.points.forEach(p => {
+        if (p.skeleton === skelName && !p.outside && (p.x < 0 || p.x >= w || p.y < 0 || p.y >= h)) {
+          p.outside = 1;
+          p.occluded = 0;
+        }
+      });
+      refreshAfterStateChange();
+      await saveCurrentEdits();
     }
 
     function cyclePointState(pt) {
@@ -1471,6 +1506,12 @@
 
       if (SCHEMA) {
         skelEl.innerHTML = "";
+        const imgW = pred.width || (IMAGES[CURRENT_IDX] && IMAGES[CURRENT_IDX].width) || 99999;
+        const imgH = pred.height || (IMAGES[CURRENT_IDX] && IMAGES[CURRENT_IDX].height) || 99999;
+        const outerLipPts = pred.points.filter(p => p.skeleton === "moingoai");
+        const outerLipAllOut = outerLipPts.length > 0 && outerLipPts.every(p => p.outside);
+        const outerLipVisCnt = outerLipPts.filter(p => !p.outside && !p.occluded).length;
+
         SCHEMA.skeletons.forEach(sk => {
           const pts = pred.points.filter(p => sk.point_ids.includes(p.point_id));
           const sv = pts.filter(p => !p.outside && !p.occluded).length;
@@ -1481,12 +1522,24 @@
           const allVis = sv === total;
           const allOcc = so === total;
           const allOut = sx === total;
+          const oobActiveCount = pts.filter(p => !p.outside && (p.x < 0 || p.x >= imgW || p.y < 0 || p.y >= imgH)).length;
+          const inFrameOutCount = pts.filter(p => p.outside && p.x >= 0 && p.x < imgW && p.y >= 0 && p.y < imgH).length;
 
           let warnHtml = "";
+          if (oobActiveCount > 0) {
+            warnHtml += `<div class="rule31-warn"><span>⚠ Có <b>${oobActiveCount}</b> điểm ngoài khung ảnh chưa đặt Outside=1</span><button type="button" onclick="fixOutOfBoundsPoints('${sk.name}')">Sửa → Outside</button></div>`;
+          }
           if (inFrame > 0 && sv < sk.min_visible_threshold) {
-            warnHtml = `<div class="rule31-warn"><span>⚠ Bảng 3.1: chỉ thấy <b>${sv}/${total}</b> (&lt;${sk.min_visible_threshold} điểm)</span><button type="button" onclick="setSkeletonState('${sk.name}', 0, 1)">Gán Outside cả nhóm</button></div>`;
-          } else if (sx > 0 && sx < total) {
-            warnHtml = `<div class="rule31-warn"><span>ℹ Hỗn hợp ${sx}/${total} điểm đang Outside</span><button type="button" onclick="setSkeletonState('${sk.name}', 0, 1)">Outside hết</button></div>`;
+            warnHtml += `<div class="rule31-warn"><span>⚠ Bảng 3.1: chỉ thấy <b>${sv}/${total}</b> (&lt;${sk.min_visible_threshold}) — giữ Occluded nếu đủ bằng chứng, không thì Outside cả nhãn</span><button type="button" onclick="setSkeletonState('${sk.name}', 0, 1)">Outside cả nhãn</button></div>`;
+          } else if (sv >= sk.min_visible_threshold && inFrameOutCount > 0) {
+            warnHtml += `<div class="rule31-warn"><span>ℹ Bảng 3.1: đủ <b>${sv}/${total}</b> (≥${sk.min_visible_threshold}) — ${inFrameOutCount} điểm trong ảnh nên đánh Occluded</span><button type="button" onclick="convertInFrameOutsideToOccluded('${sk.name}')">Đổi → Occluded</button></div>`;
+          }
+          if (sk.name === "moitrong") {
+            if (outerLipAllOut && !allOut) {
+              warnHtml += `<div class="rule31-warn"><span>⚠ <b>moingoai</b> đã Outside toàn bộ — <b>moitrong</b> cũng phải Outside=1</span><button type="button" onclick="setSkeletonState('moitrong', 0, 1)">Outside moitrong</button></div>`;
+            } else if (allOut && outerLipVisCnt >= 6) {
+              warnHtml += `<div class="rule31-warn"><span>⚠ Mục 4: miệng đóng vẫn đặt đủ 8 điểm <b>moitrong</b>, không Outside</span><button type="button" onclick="setSkeletonState('moitrong', 0, 0)">Đặt Visible</button></div>`;
+            }
           }
 
           const chipsHtml = pts.map(p => {

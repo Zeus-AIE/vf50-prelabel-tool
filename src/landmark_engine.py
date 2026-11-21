@@ -235,8 +235,13 @@ class EnsembleVF50Engine:
         conf_50 = np.clip(np.exp(-(u_px / iod) / 0.08), 0.0, 1.0)
 
         if use_6drepnet and self.headpose_engine is not None:
+            eye_l_mid = 0.5 * (lms_98[60] + lms_98[64])
+            eye_r_mid = 0.5 * (lms_98[68] + lms_98[72])
+            v_eye = eye_r_mid - eye_l_mid
+            eye_dist = float(np.linalg.norm(v_eye))
+            face_roll_deg = float(np.degrees(np.arctan2(v_eye[1], v_eye[0]))) if eye_dist >= 8.0 else 0.0
             yaw, pitch, roll = self.headpose_engine.predict(
-                image, work_bbox, use_flip_tta=use_tta
+                image, work_bbox, use_flip_tta=use_tta, roll_deg=face_roll_deg
             )
             headpose_source = "6drepnet"
         else:

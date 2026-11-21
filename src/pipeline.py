@@ -508,7 +508,7 @@ class VF50Pipeline:
             face_score=face_score,
             used_clahe=used_clahe,
             multi_face=multi_face,
-            yaw=lm_pred.yaw,
+            yaw=rule_out.effective_yaw,
             pitch=lm_pred.pitch,
             roll=lm_pred.roll,
             laplacian_var=lm_pred.laplacian_var,
