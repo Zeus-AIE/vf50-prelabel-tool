@@ -8,6 +8,8 @@ from typing import List, Optional, Sequence, Tuple
 import cv2
 import numpy as np
 
+from .preprocessor import apply_photometric_variant
+
 
 VALID_ROTATIONS = ("0", "90cw", "90ccw", "180", "auto")
 VALID_DRIVER_SIDES = ("largest", "left", "right", "center")
@@ -250,9 +252,19 @@ class FaceDetector(BaseFaceDetector):
         return results
 
     def detect_faces(self, image: np.ndarray) -> List[FaceDetection]:
-        """Detect faces on raw image first, falling back to CLAHE if nothing found."""
+        """Detect faces on raw image first, falling back to CLAHE and photometric variants if empty."""
         faces = self._run_yunet(image, used_clahe=False)
         if faces:
             return faces
         clahe_img = apply_clahe_bgr(image)
-        return self._run_yunet(clahe_img, used_clahe=True)
+        faces = self._run_yunet(clahe_img, used_clahe=True)
+        if faces:
+            return faces
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
+        p50_img = float(np.median(gray))
+        primary_var = "dark_lift" if p50_img < 120.0 else "highlight_recover"
+        for var_name in (primary_var, "shadow_highlight"):
+            faces = self._run_yunet(apply_photometric_variant(image, var_name), used_clahe=True)
+            if faces:
+                return faces
+        return []

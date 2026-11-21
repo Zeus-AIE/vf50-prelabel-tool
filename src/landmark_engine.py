@@ -19,9 +19,12 @@ from spiga.inference.config import ModelConfig
 from spiga.inference.framework import SPIGAFramework
 
 from .preprocessor import (
+    analyze_face_photometrics,
+    apply_photometric_variant,
     conditional_photometric_enhance,
     estimate_roll_from_landmarks5,
     estimate_roll_from_wflw98,
+    select_tta_exposure_variants,
     unwarp_points,
     warp_face_upright,
 )
@@ -269,72 +272,29 @@ class EnsembleVF50Engine:
             return None
         return [min_x, min_y, rw, rh]
 
-    def predict(
+    @staticmethod
+    def _exposure_consensus_score(
+        conf_50: np.ndarray, u_px: np.ndarray, iod: float, ensemble_used: str
+    ) -> Tuple[int, float]:
+        tier = 2 if ensemble_used == "spiga+tufa+star" else (1 if "outlier" not in ensemble_used else 0)
+        mean_conf = float(np.mean(conf_50))
+        p90_u_norm = float(np.percentile(u_px, 90)) / max(iod, 16.0)
+        return tier, mean_conf - 0.50 * p90_u_norm
+
+    def _infer_landmarks_on_crop(
         self,
-        image: np.ndarray,
-        bbox: Sequence[float],
-        use_tta: bool = True,
-        use_two_pass: bool = True,
-        use_ensemble: bool = True,
-        use_6drepnet: bool = True,
-        landmarks5: Optional[Sequence[Sequence[float]]] = None,
-        use_roll_align: bool = True,
-        use_photo_preprocess: bool = True,
-        use_star: bool = False,
-        run_face_parsing: bool = False,
-    ) -> LandmarkPrediction:
-        img_h, img_w = image.shape[:2]
-        orig_bbox = [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])]
-        tags: List[str] = []
-
-        # 1. Conditional Photometric Guard (acts only on very dark or blown-out faces)
-        work_img = image
-        if use_photo_preprocess:
-            work_img, photo_used, photo_tag = conditional_photometric_enhance(image, orig_bbox)
-            if photo_used:
-                tags.append(photo_tag)
-
-        # 2. Roll-Aligned Face Warping (de-rotates in-plane roll before landmark & headpose models)
-        align_roll_deg = 0.0
-        lms_p1_raw: Optional[np.ndarray] = None
-        if use_roll_align:
-            if landmarks5 and len(landmarks5) >= 2:
-                align_roll_deg = estimate_roll_from_landmarks5(landmarks5)
-            else:
-                lms_p1_raw, _, _, _, _ = self.spiga_engine.predict_wflw98_tta(
-                    work_img, orig_bbox, use_flip_tta=False
-                )
-                align_roll_deg = estimate_roll_from_wflw98(lms_p1_raw)
-
-        m_inv: Optional[np.ndarray] = None
-        if use_roll_align and abs(align_roll_deg) >= 12.0:
-            proc_img, proc_orig_bbox, m_inv = warp_face_upright(work_img, orig_bbox, align_roll_deg)
-            proc_h, proc_w = proc_img.shape[:2]
-            tags.append(f"roll({align_roll_deg:+.0f}°)")
-        else:
-            proc_img, proc_orig_bbox = work_img, orig_bbox
-            proc_h, proc_w = img_h, img_w
-
-        refined_bbox: Optional[List[float]] = None
-        work_bbox = proc_orig_bbox
-        if use_two_pass:
-            if lms_p1_raw is not None and m_inv is None:
-                lms_p1 = lms_p1_raw
-            else:
-                lms_p1, _, _, _, _ = self.spiga_engine.predict_wflw98_tta(
-                    proc_img, proc_orig_bbox, use_flip_tta=False
-                )
-            cand_bbox = self._compute_tight_bbox(lms_p1, proc_orig_bbox, proc_w, proc_h)
-            if cand_bbox is not None:
-                refined_bbox = cand_bbox
-                work_bbox = cand_bbox
-
+        proc_img: np.ndarray,
+        work_bbox: Sequence[float],
+        use_tta: bool,
+        use_ensemble: bool,
+        use_star: bool,
+    ) -> Tuple[np.ndarray, str, np.ndarray, np.ndarray, np.ndarray, float, float, float, float]:
         lms_spiga, flip_spiga, sp_yaw, sp_pitch, sp_roll = (
             self.spiga_engine.predict_wflw98_tta(proc_img, work_bbox, use_flip_tta=use_tta)
         )
         iod = max(
             float(np.linalg.norm(lms_spiga[60] - lms_spiga[72])),
-            0.25 * work_bbox[2],
+            0.25 * float(work_bbox[2]),
             16.0,
         )
 
@@ -387,6 +347,135 @@ class EnsembleVF50Engine:
             u_px = 0.5 * flip_spiga[_VF50_INDEX_ARRAY]
 
         conf_50 = np.clip(np.exp(-(u_px / iod) / 0.08), 0.0, 1.0)
+        return lms_98, ensemble_used, disagree_50, u_px, conf_50, sp_yaw, sp_pitch, sp_roll, iod
+
+    def predict(
+        self,
+        image: np.ndarray,
+        bbox: Sequence[float],
+        use_tta: bool = True,
+        use_two_pass: bool = True,
+        use_ensemble: bool = True,
+        use_6drepnet: bool = True,
+        landmarks5: Optional[Sequence[Sequence[float]]] = None,
+        use_roll_align: bool = True,
+        use_photo_preprocess: bool = True,
+        use_star: bool = False,
+        run_face_parsing: bool = False,
+    ) -> LandmarkPrediction:
+        img_h, img_w = image.shape[:2]
+        orig_bbox = [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])]
+        tags: List[str] = []
+
+        # 1. Conditional Photometric Guard (acts on dark, bright, split-lit backlit, or flat faces)
+        photo_metrics = analyze_face_photometrics(image, orig_bbox)
+        photo_tag = "none"
+        work_img = image
+        if use_photo_preprocess:
+            work_img, photo_used, photo_tag = conditional_photometric_enhance(image, orig_bbox)
+            if photo_used:
+                tags.append(photo_tag)
+
+        # 2. Roll-Aligned Face Warping (de-rotates in-plane roll before landmark & headpose models)
+        align_roll_deg = 0.0
+        lms_p1_raw: Optional[np.ndarray] = None
+        if use_roll_align:
+            if landmarks5 and len(landmarks5) >= 2:
+                align_roll_deg = estimate_roll_from_landmarks5(landmarks5)
+            else:
+                lms_p1_raw, _, _, _, _ = self.spiga_engine.predict_wflw98_tta(
+                    work_img, orig_bbox, use_flip_tta=False
+                )
+                align_roll_deg = estimate_roll_from_wflw98(lms_p1_raw)
+
+        m_inv: Optional[np.ndarray] = None
+        if use_roll_align and abs(align_roll_deg) >= 12.0:
+            proc_img, proc_orig_bbox, m_inv = warp_face_upright(work_img, orig_bbox, align_roll_deg)
+            proc_h, proc_w = proc_img.shape[:2]
+            tags.append(f"roll({align_roll_deg:+.0f}°)")
+        else:
+            proc_img, proc_orig_bbox = work_img, orig_bbox
+            proc_h, proc_w = img_h, img_w
+
+        refined_bbox: Optional[List[float]] = None
+        work_bbox = proc_orig_bbox
+        if use_two_pass:
+            if lms_p1_raw is not None and m_inv is None:
+                lms_p1 = lms_p1_raw
+            else:
+                lms_p1, _, _, _, _ = self.spiga_engine.predict_wflw98_tta(
+                    proc_img, proc_orig_bbox, use_flip_tta=False
+                )
+            cand_bbox = self._compute_tight_bbox(lms_p1, proc_orig_bbox, proc_w, proc_h)
+            if cand_bbox is not None:
+                refined_bbox = cand_bbox
+                work_bbox = cand_bbox
+
+        lms_98, ensemble_used, disagree_50, u_px, conf_50, sp_yaw, sp_pitch, sp_roll, iod = (
+            self._infer_landmarks_on_crop(
+                proc_img, work_bbox, use_tta=use_tta, use_ensemble=use_ensemble, use_star=use_star
+            )
+        )
+
+        # 3. Auto Multi-Exposure Landmark Consensus TTA (gated to low-consensus / stressed lighting frames)
+        multi_model_active = bool(
+            use_ensemble
+            and (self.tufa_engine is not None or (use_star and self.star_engine is not None))
+        )
+        base_tier, base_score = self._exposure_consensus_score(conf_50, u_px, iod, ensemble_used)
+        base_mean_conf = float(np.mean(conf_50))
+        base_max_u = float(np.max(u_px))
+        lighting_stressed = bool(
+            photo_metrics["valid"] > 0.5
+            and (
+                photo_metrics["dyn_range"] >= 165.0
+                or photo_metrics["p50"] < 55.0
+                or photo_metrics["dark_frac"] >= 0.15
+                or photo_metrics["bright_frac"] >= 0.06
+            )
+        )
+        should_run_exp_tta = bool(
+            use_photo_preprocess
+            and multi_model_active
+            and (
+                base_tier < 2
+                or base_mean_conf < 0.80
+                or (base_max_u > 4.5 and lighting_stressed)
+            )
+        )
+
+        if should_run_exp_tta:
+            raw_proc_img = (
+                warp_face_upright(image, orig_bbox, align_roll_deg)[0]
+                if m_inv is not None
+                else image
+            )
+            best_tier, best_score = base_tier, base_score
+            best_var: Optional[str] = None
+            for var_name in select_tta_exposure_variants(photo_metrics, photo_tag):
+                cand_img = apply_photometric_variant(raw_proc_img, var_name)
+                c_lms, c_ens, c_dis, c_upx, c_conf, c_yaw, c_pit, c_rol, c_iod = (
+                    self._infer_landmarks_on_crop(
+                        cand_img,
+                        work_bbox,
+                        use_tta=use_tta,
+                        use_ensemble=use_ensemble,
+                        use_star=use_star,
+                    )
+                )
+                c_tier, c_score = self._exposure_consensus_score(c_conf, c_upx, c_iod, c_ens)
+                if float(np.mean(c_conf)) >= 0.45 and (
+                    (c_tier > best_tier)
+                    or (c_tier == best_tier and c_score >= best_score + 0.010)
+                ):
+                    best_tier, best_score = c_tier, c_score
+                    lms_98, ensemble_used, disagree_50, u_px, conf_50 = (
+                        c_lms, c_ens, c_dis, c_upx, c_conf
+                    )
+                    sp_yaw, sp_pitch, sp_roll = c_yaw, c_pit, c_rol
+                    best_var = var_name
+            if best_var is not None:
+                tags.append(f"exp_tta({best_var})")
 
         if use_6drepnet and self.headpose_engine is not None:
             res_roll = estimate_roll_from_wflw98(lms_98)
@@ -400,6 +489,7 @@ class EnsembleVF50Engine:
 
         parsing_evidence: Optional[FaceParsingEvidence] = None
         if run_face_parsing and self.face_parser is not None:
+            # Keep BiSeNet on baseline proc_img so calibrated sunglasses/glare thresholds never shift
             parsing_evidence = self.face_parser.analyze(proc_img, lms_98)
 
         if m_inv is not None:

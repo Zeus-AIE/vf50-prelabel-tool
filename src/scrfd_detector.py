@@ -9,6 +9,7 @@ import numpy as np
 import onnxruntime as ort
 
 from .detector import BaseFaceDetector, FaceDetection, FaceDetector, apply_clahe_bgr
+from .preprocessor import apply_photometric_variant
 
 
 def _distance2bbox(points: np.ndarray, distance: np.ndarray) -> np.ndarray:
@@ -166,14 +167,54 @@ class SCRFDDetector(BaseFaceDetector):
         return results
 
     def detect_faces(self, image: np.ndarray) -> List[FaceDetection]:
-        """Run SCRFD-10G on raw image first, then CLAHE, then optional YuNet fallback."""
-        faces = self._run_scrfd(image, self.score_threshold, used_clahe=False)
-        if faces:
-            return faces
+        """Run SCRFD-10G on raw image first, rescuing low-score or dark/backlit frames via photometric variants."""
+        raw_faces = self._run_scrfd(image, self.score_threshold, used_clahe=False)
+        best_raw_score = max((f.score for f in raw_faces), default=0.0)
+        if raw_faces and best_raw_score >= 0.48:
+            return raw_faces
+
+        best_faces = raw_faces
+        best_score = best_raw_score
+
+        def _consider(cand_faces: List[FaceDetection]) -> None:
+            nonlocal best_faces, best_score
+            if not cand_faces:
+                return
+            cand_score = max(f.score for f in cand_faces)
+            if not best_faces or cand_score >= best_score + 0.06:
+                best_faces = cand_faces
+                best_score = cand_score
+
         clahe_img = apply_clahe_bgr(image)
-        faces = self._run_scrfd(clahe_img, self.clahe_score_threshold, used_clahe=True)
-        if faces:
-            return faces
+        _consider(self._run_scrfd(clahe_img, self.clahe_score_threshold, used_clahe=True))
+
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
+        p50_img = float(np.median(gray))
+        primary_var = (
+            "dark_lift"
+            if p50_img < 90.0
+            else ("highlight_recover" if p50_img > 165.0 else "shadow_highlight")
+        )
+        _consider(
+            self._run_scrfd(
+                apply_photometric_variant(image, primary_var),
+                self.clahe_score_threshold,
+                used_clahe=True,
+            )
+        )
+
+        if not best_faces:
+            secondary_var = "shadow_highlight" if primary_var != "shadow_highlight" else "dark_lift"
+            _consider(
+                self._run_scrfd(
+                    apply_photometric_variant(image, secondary_var),
+                    self.clahe_score_threshold,
+                    used_clahe=True,
+                )
+            )
+
+        if best_faces:
+            return best_faces
         if self.fallback_yunet is not None:
             return self.fallback_yunet.detect_faces(image)
         return []
